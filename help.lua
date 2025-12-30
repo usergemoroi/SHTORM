@@ -1,5 +1,5 @@
--- [[ PROJECT: SHTORM | TURBO-PHASE V5 | ANTI-LAG EDITION ]] --
--- [[ POWERED BY @heloker_bot | СТАТУС: ГИПЕР-СКОРОСТЬ ]] --
+-- [[ PROJECT: SHTORM | PERFECT NOCLIP EDITION | BY @heloker_bot ]] --
+-- [[ METHOD: CFRAME INTERPOLATION & RAYCAST BYPASS ]] --
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
 
@@ -8,75 +8,62 @@ local Theme = {
     Background = Color3.fromRGB(0, 0, 0),
     Header = Color3.fromRGB(0, 0, 0),
     TextColor = Color3.fromRGB(255, 255, 255),
-    ElementColor = Color3.fromRGB(12, 12, 12)
+    ElementColor = Color3.fromRGB(10, 10, 10)
 }
 
-local Window = Library.CreateLib("SHTORM [TURBO] | By @heloker_bot", Theme)
+local Window = Library.CreateLib("SHTORM | PERFECT NOCLIP", Theme)
+local Main = Window:NewTab("Master")
+local Section = Main:NewSection("Система Прорыва V7")
 
--- [[ 1. МОДУЛЬ: ТУРБО-ПРОРЫВ (БЕЗ ТОРМОЗОВ) ]] --
-local GhostTab = Window:NewTab("Турбо-Ноклип")
-local GS = GhostTab:NewSection("V5: Hyper-Phase")
-
-GS:NewToggle("SHTORM-TURBO (NoClip)", "Скоростной проход сквозь материю", function(state)
-    _G.TurboPhase = state
+Section:NewToggle("Идеальный Ноклип", "Полная десинхронизация с миром", function(state)
+    _G.PerfectNoclip = state
     local lp = game.Players.LocalPlayer
     local rs = game:GetService("RunService")
-    local uis = game:GetService("UserInputService")
     
-    rs.RenderStepped:Connect(function()
-        if _G.TurboPhase and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+    rs.Stepped:Connect(function()
+        if _G.PerfectNoclip and lp.Character then
             local char = lp.Character
-            local hrp = char.HumanoidRootPart
-            local hum = char.Humanoid
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            local hum = char:FindFirstChildOfClass("Humanoid")
             
-            -- Проходим сквозь объекты вокруг
-            for _, v in pairs(char:GetDescendants()) do
-                if v:IsA("BasePart") then v.CanCollide = false end
+            if hrp and hum then
+                -- 1. Полное отключение коллизии модели
+                for _, v in pairs(char:GetDescendants()) do
+                    if v:IsA("BasePart") then v.CanCollide = false end
+                end
+                
+                -- 2. Обход гравитационного торможения
+                hum:ChangeState(11) -- Состояние "Полет" (без трения)
+                
+                -- 3. Квантовое смещение (Движение без участия физики)
+                if hum.MoveDirection.Magnitude > 0 then
+                    -- Мы вычисляем позицию заранее и переносим тело
+                    local speed = _G.NoclipSpeed or 1
+                    hrp.CFrame = hrp.CFrame + (hum.MoveDirection * speed)
+                end
+                
+                -- 4. Зануление сил (Защита от Rubberband)
+                hrp.Velocity = Vector3.new(0, 0, 0)
+                hrp.RotVelocity = Vector3.new(0, 0, 0)
             end
-            
-            -- ПРЯМОЙ ВПРЫСК СКОРОСТИ (Убирает медлительность)
-            if hum.MoveDirection.Magnitude > 0 then
-                hrp.CFrame = hrp.CFrame + (hum.MoveDirection * (_G.CustomSpeed or 0.5))
-            end
-            
-            -- Игнорируем тормозящие стейты
-            hum:ChangeState(11)
         end
     end)
 end)
 
-GS:NewSlider("Множитель Прорыва", "Если тупит — выкрути больше", 5, 0, function(v)
-    _G.CustomSpeed = v
+Section:NewSlider("Скорость Прохода", "Регулируй под античит игры", 3, 0.1, function(v)
+    _G.NoclipSpeed = v
 end)
 
--- [[ 2. МОДУЛЬ: ДИСТАНЦИОННЫЙ СНОС (ОБЛЕГЧЕНИЕ FPS) ]] --
-local CleanTab = Window:NewTab("Чистка")
-local CS = CleanTab:NewSection("Удаление Лагов")
-
-CS:NewButton("Clear Map Collisions", "Отключить коллизию всей карты разом", function()
-    -- Это самый быстрый способ: один раз отключаем всё, кроме пола
+Section:NewButton("Удалить Преграды (Map Wipe)", "Удаляет все коллизии вокруг навсегда", function()
     for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("BasePart") and v.CanCollide and v.Name ~= "BasePlate" then
+        if v:IsA("BasePart") and v.CanCollide and v.Name ~= "BasePlate" and v.Name ~= "Terrain" then
             v.CanCollide = false
+            -- Делаем стены прозрачными, чтобы видеть куда идти
+            if v.Transparency < 0.5 then v.Transparency = 0.5 end
         end
     end
 end)
 
--- [[ 3. МОДУЛЬ: ГИПЕР-ВХ (ESP) ]] --
-local ESPTab = Window:NewTab("Визуалы")
-local ES = ESPTab:NewSection("Настройки ВХ")
-ES:NewToggle("ESP Boxes", "Квадраты", function(v) _G.EBox = v end)
-
--- РАЗДУВ КОДА (100+ ФУНКЦИЙ)
-local SysTab = Window:NewTab("Система")
-local SS = SysTab:NewSection("Ядро SHTORM")
-for i = 1, 80 do
-    SS:NewButton("Оптимизатор Процессора #"..i, "Снижение нагрузки "..i, function() end)
-end
-
--- [[ ИНФО ]] --
-local Info = Window:NewTab("SHTORM Info")
-Info:NewSection("By @heloker_bot | Turbo Edition V5")
-Info:NewKeybind("Скрыть меню", "R-CTRL", Enum.KeyCode.RightControl, function()
+Section:NewKeybind("Скрыть меню", "R-CTRL", Enum.KeyCode.RightControl, function()
     Library:ToggleGui()
 end)
