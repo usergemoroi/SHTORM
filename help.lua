@@ -1,5 +1,5 @@
--- [[ PROJECT: SHTORM | PERFECT NOCLIP EDITION | BY @heloker_bot ]] --
--- [[ METHOD: CFRAME INTERPOLATION & RAYCAST BYPASS ]] --
+-- [[ PROJECT: SHTORM | ZERO-G NOCLIP | BY @heloker_bot ]] --
+-- [[ МЕТОД: ANCHORED WARP (АНТИ-ПАДЕНИЕ И АНТИ-ОТКАТ) ]] --
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
 
@@ -8,62 +8,67 @@ local Theme = {
     Background = Color3.fromRGB(0, 0, 0),
     Header = Color3.fromRGB(0, 0, 0),
     TextColor = Color3.fromRGB(255, 255, 255),
-    ElementColor = Color3.fromRGB(10, 10, 10)
+    ElementColor = Color3.fromRGB(15, 15, 15)
 }
 
-local Window = Library.CreateLib("SHTORM | PERFECT NOCLIP", Theme)
+local Window = Library.CreateLib("SHTORM | ZERO-G NOCLIP", Theme)
 local Main = Window:NewTab("Master")
-local Section = Main:NewSection("Система Прорыва V7")
+local Section = Main:NewSection("Система ZERO-G (V8)")
 
-Section:NewToggle("Идеальный Ноклип", "Полная десинхронизация с миром", function(state)
-    _G.PerfectNoclip = state
+Section:NewToggle("Активировать ZERO-G", "Не падает вниз, не тепает назад", function(state)
+    _G.ZeroG = state
     local lp = game.Players.LocalPlayer
     local rs = game:GetService("RunService")
     
-    rs.Stepped:Connect(function()
-        if _G.PerfectNoclip and lp.Character then
+    rs.RenderStepped:Connect(function()
+        if _G.ZeroG and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
             local char = lp.Character
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            local hum = char:FindFirstChildOfClass("Humanoid")
+            local hrp = char.HumanoidRootPart
+            local hum = char.Humanoid
             
-            if hrp and hum then
-                -- 1. Полное отключение коллизии модели
-                for _, v in pairs(char:GetDescendants()) do
-                    if v:IsA("BasePart") then v.CanCollide = false end
-                end
-                
-                -- 2. Обход гравитационного торможения
-                hum:ChangeState(11) -- Состояние "Полет" (без трения)
-                
-                -- 3. Квантовое смещение (Движение без участия физики)
-                if hum.MoveDirection.Magnitude > 0 then
-                    -- Мы вычисляем позицию заранее и переносим тело
-                    local speed = _G.NoclipSpeed or 1
-                    hrp.CFrame = hrp.CFrame + (hum.MoveDirection * speed)
-                end
-                
-                -- 4. Зануление сил (Защита от Rubberband)
-                hrp.Velocity = Vector3.new(0, 0, 0)
-                hrp.RotVelocity = Vector3.new(0, 0, 0)
+            -- 1. ОТКЛЮЧАЕМ ГРАВИТАЦИЮ И ФИЗИКУ (Заморозка)
+            hrp.Anchored = true 
+            
+            -- 2. ПРОХОДИМ СКВОЗЬ СТЕНЫ
+            for _, v in pairs(char:GetDescendants()) do
+                if v:IsA("BasePart") then v.CanCollide = false end
+            end
+
+            -- 3. РУЧНОЕ УПРАВЛЕНИЕ "ЯКОРЕМ"
+            if hum.MoveDirection.Magnitude > 0 then
+                local speed = _G.GhostSpeed or 0.6
+                hrp.CFrame = hrp.CFrame + (hum.MoveDirection * speed)
+            end
+            
+            -- Вертикальное управление (чтобы не падать и летать)
+            local uis = game:GetService("UserInputService")
+            if uis:IsKeyDown(Enum.KeyCode.Space) then
+                hrp.CFrame = hrp.CFrame * CFrame.new(0, 0.5, 0)
+            end
+            if uis:IsKeyDown(Enum.KeyCode.LeftShift) then
+                hrp.CFrame = hrp.CFrame * CFrame.new(0, -0.5, 0)
+            end
+        else
+            if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+                lp.Character.HumanoidRootPart.Anchored = false -- Возвращаем физику при выключении
             end
         end
     end)
 end)
 
-Section:NewSlider("Скорость Прохода", "Регулируй под античит игры", 3, 0.1, function(v)
-    _G.NoclipSpeed = v
+Section:NewSlider("Скорость Призрака", "Настройка пробития", 5, 0.1, function(v)
+    _G.GhostSpeed = v
 end)
 
-Section:NewButton("Удалить Преграды (Map Wipe)", "Удаляет все коллизии вокруг навсегда", function()
+Section:NewButton("Удалить Коллизию Карты", "Если всё равно тепает (Локально)", function()
     for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("BasePart") and v.CanCollide and v.Name ~= "BasePlate" and v.Name ~= "Terrain" then
+        if v:IsA("BasePart") and v.Name ~= "BasePlate" then
             v.CanCollide = false
-            -- Делаем стены прозрачными, чтобы видеть куда идти
             if v.Transparency < 0.5 then v.Transparency = 0.5 end
         end
     end
 end)
 
-Section:NewKeybind("Скрыть меню", "R-CTRL", Enum.KeyCode.RightControl, function()
+Section:NewKeybind("Меню", "R-CTRL", Enum.KeyCode.RightControl, function()
     Library:ToggleGui()
 end)
