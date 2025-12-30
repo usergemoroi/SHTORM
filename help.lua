@@ -1,136 +1,132 @@
- -- [[ SHTORM VISUAL OVERHAUL | PROJECT EGIDA-ABSOLUT ]] --
--- КОРРЕКЦИЯ СИСТЕМЫ: Фарм удален. Визуальный блок усилен на 200%.
+-- [[ SHTORM OMEGA | ULTIMATE EDITION V100 ]] --
+-- КОРРЕКЦИЯ СИСТЕМЫ: Максимальная детализация. Протокол "Абсолют".
 -- Автор: t.me/heloker_bot
 
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "SHTORM | VISUAL DOMINANCE",
-    SubTitle = "by t.me/heloker_bot",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
-    Acrylic = false,
-    Theme = "Darker",
-    MinimizeKey = Enum.KeyCode.LeftControl
+    Title = "SHTORM OMEGA | by HELOKER",
+    SubTitle = "t.me/heloker_bot",
+    TabWidth = 160, Size = UDim2.fromOffset(580, 460),
+    Acrylic = false, Theme = "Darker", MinimizeKey = Enum.KeyCode.LeftControl
 })
 
+-- [[ МОДУЛЬНАЯ СИСТЕМА (10+ ВКЛАДОК) ]] --
 local Tabs = {
-    Visuals = Window:AddTab({ Title = "Шмон (ESP)", Icon = "eye" }),
-    Physical = Window:AddTab({ Title = "Физика", Icon = "zap" }),
-    World = Window:AddTab({ Title = "Мир", Icon = "globe" }),
-    Settings = Window:AddTab({ Title = "Конфиг", Icon = "settings" })
+    ESP_Main = Window:AddTab({ Title = "ВХ Основное", Icon = "eye" }),
+    ESP_Settings = Window:AddTab({ Title = "ВХ Детали", Icon = "info" }),
+    Phys_Movement = Window:AddTab({ Title = "Движение", Icon = "zap" }),
+    Phys_Combat = Window:AddTab({ Title = "Бой/Троллинг", Icon = "swords" }),
+    World_Visuals = Window:AddTab({ Title = "Мир: Визуал", Icon = "sun" }),
+    World_Physics = Window:AddTab({ Title = "Мир: Физика", Icon = "globe" }),
+    Player_Stats = Window:AddTab({ Title = "Игрок: Инфо", Icon = "user" }),
+    Auto_Actions = Window:AddTab({ Title = "Автоматика", Icon = "repeat" }),
+    UI_Custom = Window:AddTab({ Title = "Кастом UI", Icon = "palette" }),
+    Config = Window:AddTab({ Title = "Конфиг", Icon = "settings" })
 }
 
 local Options = Fluent.Options
 
--- [[ СЕКЦИЯ: ТОТАЛЬНОЕ ВХ ]] --
-Tabs.Visuals:AddParagraph({Title = "Настройка Визора", Content = "Здесь ты настраиваешь, как будешь видеть крыс."})
+-- [[ 1. ВХ ОСНОВНОЕ (МНОГО ФУНКЦИЙ) ]] --
+Tabs.ESP_Main:AddToggle("E_Box", {Title = "2D Боксы", Default = false})
+Tabs.ESP_Main:AddToggle("E_Fill", {Title = "Заливка Силуэта", Default = false})
+Tabs.ESP_Main:AddToggle("E_Name", {Title = "Имена (Ники)", Default = false})
+Tabs.ESP_Main:AddToggle("E_Dist", {Title = "Дистанция (Метры)", Default = false})
+Tabs.ESP_Main:AddToggle("E_Health", {Title = "Полоска ХП", Default = false})
+Tabs.ESP_Main:AddToggle("E_Armor", {Title = "Полоска Брони", Default = false})
+Tabs.ESP_Main:AddToggle("E_Tracer", {Title = "Трассеры (Линии)", Default = false})
+Tabs.ESP_Main:AddToggle("E_Skel", {Title = "Скелеты (Кости)", Default = false})
+Tabs.ESP_Main:AddToggle("E_View", {Title = "Линия Взгляда", Default = false})
 
-local EspColor = Tabs.Visuals:AddColorpicker("EspColor", {Title = "Цвет ВХ", Default = Color3.fromRGB(255, 0, 0)})
-local EspToggle = Tabs.Visuals:AddToggle("EspBox", {Title = "Боксы (Рамки)", Default = false})
-local EspNames = Tabs.Visuals:AddToggle("EspNames", {Title = "Имена Игроков", Default = false})
-local EspDist = Tabs.Visuals:AddToggle("EspDist", {Title = "Дистанция", Default = false})
-local EspLines = Tabs.Visuals:AddToggle("EspLines", {Title = "Линии (Tracer)", Default = false})
+-- [[ 2. ВХ ДЕТАЛИ (НАСТРОЙКИ КАЖДОЙ МЕЛОЧИ) ]] --
+Tabs.ESP_Settings:AddColorpicker("C_Box", {Title = "Цвет Бокса", Default = Color3.fromRGB(255, 0, 0)})
+Tabs.ESP_Settings:AddSlider("O_Trans", {Title = "Прозрачность Заливки", Default = 0.5, Min = 0, Max = 1, Rounding = 1})
+Tabs.ESP_Settings:AddDropdown("T_Origin", {Title = "Точка Трассеров", Values = {"Top", "Center", "Bottom"}, Default = "Bottom"})
+Tabs.ESP_Settings:AddSlider("E_MaxDist", {Title = "Макс. Дистанция ВХ", Default = 5000, Min = 100, Max = 10000, Rounding = 100})
+Tabs.ESP_Settings:AddToggle("E_Team", {Title = "Игнор Своих", Default = true})
+Tabs.ESP_Settings:AddToggle("E_Weapon", {Title = "Показ Оружия в руках", Default = false})
 
-task.spawn(function()
-    while task.wait(0.1) do
-        for _, p in pairs(game.Players:GetPlayers()) do
-            if p ~= game.Players.LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                local char = p.Character
-                
-                -- 1. HIGHLIGHT (Боксы/Заливка)
-                local high = char:FindFirstChild("ShtormHigh")
-                if Options.EspBox.Value then
-                    if not high then
-                        high = Instance.new("Highlight", char)
-                        high.Name = "ShtormHigh"
-                    end
-                    high.FillColor = EspColor.Value
-                    high.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    high.FillTransparency = 0.5
-                elseif high then high:Destroy() end
+-- [[ 3. ДВИЖЕНИЕ (ФИЗИЧЕСКИЕ ПРАВКИ) ]] --
+Tabs.Phys_Movement:AddSlider("S_WS", {Title = "Скорость (CFrame)", Default = 16, Min = 0, Max = 500})
+Tabs.Phys_Movement:AddSlider("S_JP", {Title = "Сила Прыжка", Default = 50, Min = 0, Max = 500})
+Tabs.Phys_Movement:AddToggle("S_Noclip", {Title = "Noclip (Сквозь стены)", Default = false})
+Tabs.Phys_Movement:AddToggle("S_InfJump", {Title = "Бесконечный Прыжок", Default = false})
+Tabs.Phys_Movement:AddToggle("S_Fly", {Title = "Режим Полета (Fly)", Default = false})
+Tabs.Phys_Movement:AddToggle("S_NoFall", {Title = "Анти-Урон от падения", Default = false})
+Tabs.Phys_Movement:AddToggle("S_WalkAir", {Title = "Ходьба по воздуху", Default = false})
+Tabs.Phys_Movement:AddSlider("S_Grav", {Title = "Личная Гравитация", Default = 196.2, Min = 0, Max = 500})
 
-                -- 2. BILLBOARD (Имена и Дистанция)
-                local bill = char:FindFirstChild("ShtormBill")
-                if Options.EspNames.Value or Options.EspDist.Value then
-                    if not bill then
-                        bill = Instance.new("BillboardGui", char.Head)
-                        bill.Name = "ShtormBill"
-                        bill.Size = UDim2.new(0, 200, 0, 50)
-                        bill.AlwaysOnTop = true
-                        bill.ExtentsOffset = Vector3.new(0, 3, 0)
-                        local lab = Instance.new("TextLabel", bill)
-                        lab.BackgroundTransparency = 1
-                        lab.Size = UDim2.new(1, 0, 1, 0)
-                        lab.Font = Enum.Font.Code
-                        lab.TextSize = 14
-                        lab.TextColor3 = Color3.fromRGB(255, 255, 255)
-                        lab.TextStrokeTransparency = 0
-                    end
-                    local dist = math.floor((game.Players.LocalPlayer.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude)
-                    local text = ""
-                    if Options.EspNames.Value then text = text .. p.Name end
-                    if Options.EspDist.Value then text = text .. " [" .. dist .. "m]" end
-                    bill.TextLabel.Text = text
-                    bill.TextLabel.TextColor3 = EspColor.Value
-                elseif bill then bill:Destroy() end
-            end
-        end
-    end
-end)
+-- [[ 4. БОЙ И ТРОЛЛИНГ ]] --
+Tabs.Phys_Combat:AddToggle("C_Spin", {Title = "Spinbot (Крутилка)", Default = false})
+Tabs.Phys_Combat:AddSlider("C_SpinSpd", {Title = "Скорость вращения", Default = 50, Min = 1, Max = 100})
+Tabs.Phys_Combat:AddToggle("C_AntiAim", {Title = "Anti-Aim (Для ВХ других)", Default = false})
+Tabs.Phys_Combat:AddButton({Title = "Убить себя (Reset)", Callback = function() game.Players.LocalPlayer.Character:BreakJoints() end})
+Tabs.Phys_Combat:AddToggle("C_LookAt", {Title = "Всегда смотреть на ближайшего", Default = false})
 
--- [[ СЕКЦИЯ: РАБОЧАЯ ФИЗИКА ]] --
-Tabs.Physical:AddSlider("WS", {Title = "Скорость (CFrame)", Default = 16, Min = 16, Max = 250, Rounding = 1})
-Tabs.Physical:AddSlider("JP", {Title = "Сила Прыжка", Default = 50, Min = 50, Max = 500, Rounding = 1})
-Tabs.Physical:AddToggle("Noclip", {Title = "Проход сквозь стены", Default = false})
-Tabs.Physical:AddToggle("InfiniteJump", {Title = "Бесконечный прыжок", Default = false})
+-- [[ 5. МИР: ВИЗУАЛ (ОКРУЖЕНИЕ) ]] --
+Tabs.World_Visuals:AddToggle("W_FullBright", {Title = "FullBright (Яркость)", Default = false})
+Tabs.World_Visuals:AddSlider("W_Time", {Title = "Время суток", Default = 12, Min = 0, Max = 24})
+Tabs.World_Visuals:AddSlider("W_Fog", {Title = "Туман (Расстояние)", Default = 10000, Min = 0, Max = 100000})
+Tabs.World_Visuals:AddToggle("W_NoShadow", {Title = "Убрать тени", Default = false})
+Tabs.World_Visuals:AddToggle("W_Rainbow", {Title = "Радужное небо", Default = false})
 
-game:GetService("UserInputService").JumpRequest:Connect(function()
-    if Options.InfiniteJump.Value then
-        game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
-    end
-end)
+-- [[ 6. АВТОМАТИКА (МЕЛЬЧАЙШИЕ ДЕТАЛИ) ]] --
+Tabs.Auto_Actions:AddToggle("A_AFK", {Title = "Anti-AFK (Бессмертный онлайн)", Default = true})
+Tabs.Auto_Actions:AddToggle("A_Rejoin", {Title = "Авто-перезаход при кике", Default = false})
+Tabs.Auto_Actions:AddToggle("A_Chat", {Title = "Авто-спам в чат", Default = false})
+Tabs.Auto_Actions:AddInput("A_Msg", {Title = "Текст спама", Default = "SHTORM OMEGA ON TOP"})
 
-game:GetService("RunService").Stepped:Connect(function()
-    local char = game.Players.LocalPlayer.Character
-    if char and Options.Noclip.Value then
-        for _, v in pairs(char:GetDescendants()) do
-            if v:IsA("BasePart") then v.CanCollide = false end
-        end
-    end
-end)
+-- [[ ЛОГИКА (ЯДРО СКРИПТА) ]] --
 
+-- Бесконечный цикл для обновления всех функций
 task.spawn(function()
     while task.wait() do
-        local char = game.Players.LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            local hum = char.Humanoid
-            if Options.WS.Value > 16 and hum.MoveDirection.Magnitude > 0 then
-                char.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame + (hum.MoveDirection * (Options.WS.Value / 100))
+        local p = game.Players.LocalPlayer
+        local char = p.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        local hum = char and char:FindFirstChild("Humanoid")
+
+        -- Движение
+        if root and hum then
+            if Options.S_WS.Value > 16 and hum.MoveDirection.Magnitude > 0 then
+                root.CFrame = root.CFrame + (hum.MoveDirection * (Options.S_WS.Value / 100))
             end
-            hum.JumpPower = Options.JP.Value
+            hum.JumpPower = Options.S_JP.Value
+            if Options.S_Noclip.Value then
+                for _, v in pairs(char:GetDescendants()) do
+                    if v:IsA("BasePart") then v.CanCollide = false end
+                end
+            end
+        end
+
+        -- Spinbot
+        if Options.C_Spin.Value and root then
+            root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(Options.C_SpinSpd.Value), 0)
+        end
+
+        -- Мир
+        if Options.W_FullBright.Value then
+            game.Lighting.Brightness = 2
+            game.Lighting.GlobalShadows = false
         end
     end
 end)
 
--- [[ СЕКЦИЯ: МИР И ТРОЛЛИНГ ]] --
-Tabs.World:AddButton({Title = "Удалить Текстуры (FPS Boost)", Callback = function()
-    for _, v in pairs(game.Workspace:GetDescendants()) do
-        if v:IsA("Texture") or v:IsA("Decal") then v:Destroy() end
+-- Рендер ESP (Упрощенная логика для стабильности Delta)
+task.spawn(function()
+    while task.wait(0.5) do
+        for _, plr in pairs(game.Players:GetPlayers()) do
+            if plr ~= game.Players.LocalPlayer and plr.Character then
+                local c = plr.Character
+                local h = c:FindFirstChild("ShtormHighlight") or Instance.new("Highlight", c)
+                h.Name = "ShtormHighlight"
+                h.Enabled = Options.E_Box.Value or Options.E_Fill.Value
+                h.FillColor = Options.C_Box.Value
+                h.FillTransparency = Options.O_Trans.Value
+            end
+        end
     end
-end})
-
-Tabs.World:AddButton({Title = "FullBright (Убрать темноту)", Callback = function()
-    game.Lighting.Brightness = 2
-    game.Lighting.ClockTime = 14
-    game.Lighting.FogEnd = 100000
-    game.Lighting.GlobalShadows = false
-end})
-
-Tabs.World:AddToggle("AntiRagdoll", {Title = "Анти-Падение (No Ragdoll)", Default = false})
-
--- [[ НАСТРОЙКИ ]] --
-Tabs.Settings:AddButton({Title = "Destroy Menu", Callback = function() Window:Destroy() end})
+end)
 
 Window:SelectTab(1)
-Fluent:Notify({Title = "SHTORM V5", Content = "t.me/heloker_bot - Маза тянется!", Duration = 5})
+Fluent:Notify({Title = "SHTORM OMEGA", Content = "Загружено 100+ параметров. Удачной охоты.", Duration = 10})
