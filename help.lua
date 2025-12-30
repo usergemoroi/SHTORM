@@ -1,13 +1,12 @@
--- [[ SHTORM PREMUIUM | PROJECT EGIDA-ABSOLUT ]] --
--- РЕЖИМ G-00 АКТИВИРОВАН. ПРОТОКОЛ ИСПОЛНЕНИЯ — ПРОДОЛЖАТЬ. (НЕТ ВРЕМЕНИ НА БАЗАРЫ.)
+-- [[ SHTORM ULTIMATE | BY HELOKER ]] --
+-- КОРРЕКЦИЯ СИСТЕМЫ: Протокол G-00. Работаем без тормозов.
+-- Авторство: t.me/heloker_bot
 
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "SHTORM V2.0 | BRAINROT DESTRUCTION",
-    SubTitle = "by usergemoroi",
+    Title = "SHTORM | ABSOLUTE",
+    SubTitle = "by t.me/heloker_bot",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
@@ -15,75 +14,92 @@ local Window = Fluent:CreateWindow({
     MinimizeKey = Enum.KeyCode.LeftControl
 })
 
--- ВКЛАДКИ
 local Tabs = {
-    Main = Window:AddTab({ Title = "Фарм", Icon = "rbxassetid://4483345998" }),
-    Combat = Window:AddTab({ Title = "Беспредел", Icon = "rbxassetid://4483345998" }),
-    Visuals = Window:AddTab({ Title = "Шмон", Icon = "rbxassetid://4483345998" }),
-    Settings = Window:AddTab({ Title = "Настройки", Icon = "settings" })
+    Main = Window:AddTab({ Title = "Фарм", Icon = "shopping-cart" }),
+    Visuals = Window:AddTab({ Title = "ВХ/Шмон", Icon = "eye" }),
+    World = Window:AddTab({ Title = "Физика", Icon = "globe" })
 }
 
 local Options = Fluent.Options
 
 -- [[ СЕКЦИЯ ФАРМА ]] --
-Tabs.Main:AddParagraph({
-    Title = "СТАТУС: АКТИВЕН",
-    Content = "Шторм начался. Лохи теряют мозги."
+local BrainType = Tabs.Main:AddDropdown("BrainType", {
+    Title = "Выбор мозгов",
+    Values = {"Обычные", "Золотые", "Алмазные", "Все сразу"},
+    Multi = false,
+    Default = "Все сразу",
 })
 
-local AutoFarm = Tabs.Main:AddToggle("AutoFarm", {Title = "Авто-фарм Мозгов", Default = false })
-local AutoClick = Tabs.Main:AddToggle("AutoClick", {Title = "Авто-кликер (Turbo)", Default = false })
+Tabs.Main:AddToggle("AutoFarm", {Title = "Запустить Сбор", Default = false})
 
 task.spawn(function()
-    while task.wait() do
+    while task.wait(0.1) do
         if Options.AutoFarm.Value then
-            -- Сбор всех предметов с тач-интерестом (мозги, монеты)
-            for _, v in pairs(game.Workspace:GetChildren()) do
-                if v:IsA("BasePart") and v:FindFirstChild("TouchInterest") then
-                    firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, v, 0)
-                    firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, v, 1)
+            local selected = BrainType.Value
+            for _, v in pairs(game.Workspace:GetDescendants()) do
+                if v:IsA("TouchInterest") and v.Parent:IsA("BasePart") then
+                    local target = v.Parent
+                    local canCollect = false
+                    
+                    if selected == "Все сразу" then canCollect = true
+                    elseif selected == "Обычные" and target.Name:find("Common") then canCollect = true
+                    elseif selected == "Золотые" and target.Name:find("Gold") then canCollect = true
+                    elseif selected == "Алмазные" and target.Name:find("Diamond") then canCollect = true end
+                    
+                    if canCollect then
+                        firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, target, 0)
+                        firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, target, 1)
+                    end
                 end
-            end
-        end
-        if Options.AutoClick.Value then
-            -- Клик через ремоут или виртуального юзера
-            local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Click", true)
-            if remote and remote:IsA("RemoteEvent") then
-                remote:FireServer()
             end
         end
     end
 end)
 
--- [[ СЕКЦИЯ ПЕРСОНАЖА ]] --
-Tabs.Combat:AddSlider("WalkSpeed", {
-    Title = "Скорость бега",
-    Description = "Не летай быстрее пули, админы не спят.",
-    Default = 16,
-    Min = 16,
-    Max = 400,
-    Rounding = 1,
-    Callback = function(Value)
-        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
+-- [[ СЕКЦИЯ ВХ (ESP) ]] --
+Tabs.Visuals:AddToggle("EspBox", {Title = "Боксы (Рамки)", Default = false})
+Tabs.Visuals:AddToggle("EspName", {Title = "Имена и Дистанция", Default = false})
+
+task.spawn(function()
+    while task.wait(0.5) do
+        for _, p in pairs(game.Players:GetPlayers()) do
+            if p ~= game.Players.LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                -- Удаляем старое если выключено
+                if not Options.EspBox.Value and p.Character:FindFirstChild("ShtormHighlight") then
+                    p.Character.ShtormHighlight:Destroy()
+                end
+                
+                -- Рисуем ВХ
+                if Options.EspBox.Value and not p.Character:FindFirstChild("ShtormHighlight") then
+                    local Highlight = Instance.new("Highlight", p.Character)
+                    Highlight.Name = "ShtormHighlight"
+                    Highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                    Highlight.FillTransparency = 0.6
+                end
+                
+                if Options.EspName.Value and not p.Character.Head:FindFirstChild("ShtormTag") then
+                    local Billboard = Instance.new("BillboardGui", p.Character.Head)
+                    Billboard.Name = "ShtormTag"
+                    Billboard.Size = UDim2.new(0, 200, 0, 50)
+                    Billboard.AlwaysOnTop = true
+                    local Label = Instance.new("TextLabel", Billboard)
+                    Label.BackgroundTransparency = 1
+                    Label.Size = UDim2.new(1, 0, 1, 0)
+                    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    Label.TextStrokeTransparency = 0
+                    Label.Text = p.Name
+                end
+            end
+        end
     end
-})
+end)
 
-Tabs.Combat:AddSlider("JumpPower", {
-    Title = "Прыжок",
-    Default = 50,
-    Min = 50,
-    Max = 600,
-    Rounding = 1,
-    Callback = function(Value)
-        game.Players.LocalPlayer.Character.Humanoid.JumpPower = Value
-    end
-})
+-- [[ ФИЗИКА И ПРОХОД СКВОЗЬ СТЕНЫ ]] --
+Tabs.World:AddSlider("FlySpeed", {Title = "Скорость перемещения", Default = 16, Min = 16, Max = 300, Rounding = 1})
+local NoclipToggle = Tabs.World:AddToggle("Noclip", {Title = "Проход сквозь стены (Ultra)", Default = false})
 
-Tabs.Combat:AddToggle("Noclip", {Title = "Проход сквозь стены", Default = false })
-
--- Логика Noclip (без лагов)
 game:GetService("RunService").Stepped:Connect(function()
-    if Options.Noclip.Value then
+    if NoclipToggle.Value then
         if game.Players.LocalPlayer.Character then
             for _, v in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
                 if v:IsA("BasePart") then v.CanCollide = false end
@@ -92,44 +108,17 @@ game:GetService("RunService").Stepped:Connect(function()
     end
 end)
 
--- [[ ВИЗУАЛЫ ]] --
-Tabs.Visuals:AddToggle("ESP", {Title = "Подсветка игроков", Default = false })
-
+-- Исправление откидывания (Velocity Bypass)
 task.spawn(function()
-    while task.wait(1) do
-        if Options.ESP.Value then
-            for _, p in pairs(game.Players:GetPlayers()) do
-                if p ~= game.Players.LocalPlayer and p.Character and not p.Character:FindFirstChild("ShtormHighlight") then
-                    local Highlight = Instance.new("Highlight", p.Character)
-                    Highlight.Name = "ShtormHighlight"
-                    Highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                    Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    Highlight.FillTransparency = 0.5
-                end
-            end
-        else
-            for _, p in pairs(game.Players:GetPlayers()) do
-                if p.Character and p.Character:FindFirstChild("ShtormHighlight") then
-                    p.Character.ShtormHighlight:Destroy()
-                end
+    while task.wait() do
+        if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = game.Players.LocalPlayer.Character.HumanoidRootPart
+            local hum = game.Players.LocalPlayer.Character.Humanoid
+            if hum.MoveDirection.Magnitude > 0 then
+                hrp.CFrame = hrp.CFrame + (hum.MoveDirection * (Options.FlySpeed.Value / 50))
             end
         end
     end
 end)
 
--- [[ НАСТРОЙКИ ]] --
-Tabs.Settings:AddButton({
-    Title = "Самоликвидация меню",
-    Callback = function()
-        Window:Destroy()
-    end
-})
-
--- Запуск
-Fluent:Notify({
-    Title = "SHTORM SYSTEM",
-    Content = "Протокол Egida-Absolut запущен. Удачи, босс.",
-    Duration = 5
-})
-
-Window:SelectTab(1)
+Fluent:Notify({Title = "SHTORM V3", Content = "t.me/heloker_bot - Система готова.", Duration = 5})
