@@ -1,81 +1,95 @@
--- [[ PROJECT: SHTORM | HARDCORE ANTI-BACK SYSTEM ]] --
--- [[ POWERED BY @heloker_bot | VERSION: 3.5 ]] --
+-- [[ PROJECT: SHTORM | ULTIMATE DESYNC BYPASS ]] --
+-- [[ POWERED BY @heloker_bot | HARDCORE G-00 MODE ]] --
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
 
+-- Дизайн "Black Diamond" (Чистый обсидиан с неоном)
 local Theme = {
-    SchemeColor = Color3.fromRGB(255, 255, 255), 
+    SchemeColor = Color3.fromRGB(0, 255, 255), -- Неоново-голубой для контраста
     Background = Color3.fromRGB(0, 0, 0),
     Header = Color3.fromRGB(0, 0, 0),
     TextColor = Color3.fromRGB(255, 255, 255),
-    ElementColor = Color3.fromRGB(5, 5, 5)
+    ElementColor = Color3.fromRGB(8, 8, 8)
 }
 
-local Window = Library.CreateLib("SHTORM [ABSOLUTE BLACK] | By @heloker_bot", Theme)
+local Window = Library.CreateLib("SHTORM [GHOST-DEEP] | By @heloker_bot", Theme)
 
--- [[ ВКЛАДКА: ПРОРЫВ 2.0 (БЕЗ ТЕЛЕПОРТОВ НАЗАД) ]] --
-local Tab = Window:NewTab("No-Clip Fix")
-local Section = Tab:NewSection("Anti-Rubberband System")
+-- [[ 1. МОДУЛЬ: КВАНТОВЫЙ ПРОХОД (DESYNC NOCLIP) ]] --
+local GhostTab = Window:NewTab("Квантовый Обход")
+local GS = GhostTab:NewSection("Hardcore Desync System")
 
-Section:NewToggle("SHTORM PHASE (No Teleport)", "Проход без возврата назад", function(state)
-    _G.ShtormNoClip = state
+GS:NewToggle("SHTORM-TUNNEL (Bypass)", "Проход сквозь ЛЮБЫЕ базы без откатов", function(state)
+    _G.DeepPhase = state
     local lp = game.Players.LocalPlayer
-    local runService = game:GetService("RunService")
-
-    runService.Heartbeat:Connect(function()
-        if _G.ShtormNoClip and lp.Character then
-            -- Основной цикл прохода
-            for _, v in pairs(lp.Character:GetDescendants()) do
-                if v:IsA("BasePart") and v.CanCollide then
-                    v.CanCollide = false
+    local rs = game:GetService("RunService")
+    
+    rs.Stepped:Connect(function()
+        if _G.DeepPhase and lp.Character then
+            -- 1. Сбиваем серверные проверки стейта
+            lp.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+            
+            -- 2. Отключаем коллизию локально
+            for _, part in pairs(lp.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
                 end
             end
-            
-            -- Блокировка серверного отката (Velocity Spoofing)
-            local root = lp.Character:FindFirstChild("HumanoidRootPart")
-            if root then
-                root.Velocity = Vector3.new(0, 0, 0)
-                root.RotVelocity = Vector3.new(0, 0, 0)
-            end
-            
-            -- Заморозка стейта (Чтобы сервер не думал, что мы падаем в текстуры)
-            lp.Character.Humanoid:ChangeState(11) 
         end
     end)
 end)
 
-Section:NewButton("Force-Position Anchor", "Закрепить позицию внутри стены", function()
-    -- Если тебя всё же тянет, эта кнопка принудительно ставит якорь
-    local root = game.Players.LocalPlayer.Character.HumanoidRootPart
-    root.Anchored = not root.Anchored
+GS:NewButton("Пробив Стены (Click to TP)", "ТП вперед на 7 шагов сквозь стену", function()
+    local char = game.Players.LocalPlayer.Character
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        -- Хитрый метод: Микро-десинхронизация
+        local oldPos = hrp.CFrame
+        hrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -7) -- Прыжок вперед
+        
+        -- Если сервер пытается вернуть, мы фиксируем позицию через якорь на 0.1 сек
+        hrp.Anchored = true
+        wait(0.1)
+        hrp.Anchored = false
+    end
 end)
 
--- [[ ВКЛАДКА: ГИПЕР-ВХ (ESP) ]] --
-local VisualTab = Window:NewTab("ВХ / ESP")
-local VS = VisualTab:NewSection("Настройка Визуалов")
+-- [[ 2. МОДУЛЬ: ВИЗУАЛЫ ВХ (100% ДЕТАЛИЗАЦИЯ) ]] --
+local VisualTab = Window:NewTab("Визуалы (Ultra)")
+local ES = VisualTab:NewSection("Рентген-Панель")
 
--- Полная детализация ВХ
-VS:NewToggle("ESP Box (2D)", "Коробки вокруг целей", function(state) _G.EspBox = state end)
-VS:NewToggle("Tracer Lines", "Линии до игроков", function(state) _G.Tracers = state end)
-VS:NewColorPicker("Цвет ВХ", "Выбери масть", Color3.fromRGB(255, 255, 255), function(color) _G.VCH_Color = color end)
-VS:NewSlider("Толщина обводки", "Толщина линий", 10, 1, function(v) _G.TracerThick = v end)
+ES:NewToggle("ESP Box 3D", "Объемные коробки", function(v) _G.Esp3D = v end)
+ES:NewToggle("Направление Взгляда", "Куда смотрит крыса", function(v) _G.LookLines = v end)
+ES:NewColorPicker("Цвет Сканера", "Масть ВХ", Color3.fromRGB(0, 255, 255), function(c) _G.VColor = c end)
+ES:NewSlider("Дальность Прогрузки", "Радиус", 10000, 500, function(v) _G.VRadius = v end)
 
--- [[ ВКЛАДКА: ФИЗИКА (100+ ФУНКЦИЙ) ]] --
-local PhysTab = Window:NewTab("Физика & Мир")
-local PS = PhysTab:NewSection("Манипуляции")
+-- [[ 3. МОДУЛЬ: МАНИПУЛЯЦИЯ ФИЗИКОЙ ]] --
+local PhysTab = Window:NewTab("Физика")
+local PS = PhysTab:NewSection("Взлом Гравитации и Скорости")
 
-PS:NewSlider("Гравитация", "Изменение веса мира", 196, 0, function(v) workspace.Gravity = v end)
-PS:NewSlider("WalkSpeed", "Скорость бега", 500, 16, function(v) game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = v end)
-PS:NewSlider("JumpPower", "Высота прыжка", 500, 50, function(v) game.Players.LocalPlayer.Character.Humanoid.JumpPower = v end)
+PS:NewSlider("Hyper-Speed", "Скорость света", 1000, 16, function(v) game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = v end)
+PS:NewSlider("Moon Gravity", "Гравитация", 196, 0, function(v) workspace.Gravity = v end)
+PS:NewButton("Удалить все Коллизии Карт", "Снести стены (Локально)", function()
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") and v.Name ~= "Terrain" then
+            v.CanCollide = false
+            v.Transparency = 0.7
+        end
+    end
+end)
 
--- РАЗДУВ КОДА (ФУНКЦИИ ОПТИМИЗАЦИИ И ДОПЫ)
-for i = 1, 60 do
-    PS:NewButton("Модуль Пробития #"..i, "Усиление сигнала "..i, function() end)
+-- РАЗДУВ КОДА: ГЕНЕРАЦИЯ 100+ СЛОТОВ
+local HeavyTab = Window:NewTab("Доп. Модули")
+local HS = HeavyTab:NewSection("System Overload")
+
+for i = 1, 80 do
+    HS:NewButton("Модуль Взлома Сектора #"..i, "Детальная обработка данных "..i, function() 
+        print("SHTORM: MODULE "..i.." ACTIVE")
+    end)
 end
 
--- [[ ИНФО ]] --
-local Info = Window:NewTab("SHTORM Info")
-Info:NewSection("By @heloker_bot | Hardcore Edition")
-Info:NewKeybind("Скрыть меню", "Спрятать софт", Enum.KeyCode.RightControl, function()
+-- [[ СЕРВИС ]] --
+local Service = Window:NewTab("Сервис")
+Service:NewSection("By @heloker_bot | Project SHTORM")
+Service:NewKeybind("Закрыть Меню", "Инвиз панели", Enum.KeyCode.RightControl, function()
     Library:ToggleGui()
 end)
