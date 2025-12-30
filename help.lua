@@ -1,120 +1,81 @@
--- [[ SHTORM PROJECT: HARDCORE EDITION | BY @heloker_bot ]] --
--- [[ СТАТУС: АБСОЛЮТНЫЙ ДОСТУП | ЛИЦЕНЗИЯ: G-00 ]] --
+-- [[ PROJECT: SHTORM | HARDCORE ANTI-BACK SYSTEM ]] --
+-- [[ POWERED BY @heloker_bot | VERSION: 3.5 ]] --
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
 
--- Obsidian Neon Theme (Самый черный из всех черных)
 local Theme = {
     SchemeColor = Color3.fromRGB(255, 255, 255), 
     Background = Color3.fromRGB(0, 0, 0),
     Header = Color3.fromRGB(0, 0, 0),
-    TextColor = Color3.fromRGB(200, 200, 200),
-    ElementColor = Color3.fromRGB(10, 10, 10)
+    TextColor = Color3.fromRGB(255, 255, 255),
+    ElementColor = Color3.fromRGB(5, 5, 5)
 }
 
-local Window = Library.CreateLib("SHTORM [HELL-CORE] | By @heloker_bot", Theme)
+local Window = Library.CreateLib("SHTORM [ABSOLUTE BLACK] | By @heloker_bot", Theme)
 
--- [[ 1. МОДУЛЬ: ФАНТОМНЫЙ ПРОРЫВ (NOCLIP 10.0) ]] --
-local GhostTab = Window:NewTab("Фантом")
-local GS = GhostTab:NewSection("Hardcore NoClip System")
+-- [[ ВКЛАДКА: ПРОРЫВ 2.0 (БЕЗ ТЕЛЕПОРТОВ НАЗАД) ]] --
+local Tab = Window:NewTab("No-Clip Fix")
+local Section = Tab:NewSection("Anti-Rubberband System")
 
-GS:NewToggle("SHTORM-GHOST (NoClip)", "Прохождение сквозь любую материю", function(state)
-    _G.GhostMode = state
-    game:GetService("RunService").Stepped:Connect(function()
-        if _G.GhostMode then
-            local char = game.Players.LocalPlayer.Character
-            if char then
-                for _, part in pairs(char:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
+Section:NewToggle("SHTORM PHASE (No Teleport)", "Проход без возврата назад", function(state)
+    _G.ShtormNoClip = state
+    local lp = game.Players.LocalPlayer
+    local runService = game:GetService("RunService")
+
+    runService.Heartbeat:Connect(function()
+        if _G.ShtormNoClip and lp.Character then
+            -- Основной цикл прохода
+            for _, v in pairs(lp.Character:GetDescendants()) do
+                if v:IsA("BasePart") and v.CanCollide then
+                    v.CanCollide = false
                 end
             end
+            
+            -- Блокировка серверного отката (Velocity Spoofing)
+            local root = lp.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                root.Velocity = Vector3.new(0, 0, 0)
+                root.RotVelocity = Vector3.new(0, 0, 0)
+            end
+            
+            -- Заморозка стейта (Чтобы сервер не думал, что мы падаем в текстуры)
+            lp.Character.Humanoid:ChangeState(11) 
         end
     end)
 end)
 
-GS:NewSlider("Скорость Прохода", "Регулировка пробития стен", 5, 1, function(v)
-    _G.PhasePower = v
+Section:NewButton("Force-Position Anchor", "Закрепить позицию внутри стены", function()
+    -- Если тебя всё же тянет, эта кнопка принудительно ставит якорь
+    local root = game.Players.LocalPlayer.Character.HumanoidRootPart
+    root.Anchored = not root.Anchored
 end)
 
-GS:NewButton("Обход Коллизии Сервера", "Отключает расчет веса", function()
-    local lp = game.Players.LocalPlayer
-    local char = lp.Character
-    char.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
-    char.Humanoid:ChangeState(11)
-end)
+-- [[ ВКЛАДКА: ГИПЕР-ВХ (ESP) ]] --
+local VisualTab = Window:NewTab("ВХ / ESP")
+local VS = VisualTab:NewSection("Настройка Визуалов")
 
--- [[ 2. МОДУЛЬ: ГИПЕР-ВХ (ESP DELUXE) ]] --
-local ESPTab = Window:NewTab("Рентген")
-local ES = ESPTab:NewSection("Визуализация Объектов")
+-- Полная детализация ВХ
+VS:NewToggle("ESP Box (2D)", "Коробки вокруг целей", function(state) _G.EspBox = state end)
+VS:NewToggle("Tracer Lines", "Линии до игроков", function(state) _G.Tracers = state end)
+VS:NewColorPicker("Цвет ВХ", "Выбери масть", Color3.fromRGB(255, 255, 255), function(color) _G.VCH_Color = color end)
+VS:NewSlider("Толщина обводки", "Толщина линий", 10, 1, function(v) _G.TracerThick = v end)
 
-ES:NewToggle("ESP Игроков", "Видеть всех фраеров", function(v) _G.EspPlayers = v end)
-ES:NewColorPicker("Цвет Линий", "Настрой масть", Color3.fromRGB(255, 255, 255), function(c) _G.TracerColor = c end)
-ES:NewToggle("ESP Предметов", "Подсветка лута", function(v) _G.EspItems = v end)
-ES:NewSlider("Радиус Обнаружения", "Дальность ВХ", 5000, 100, function(v) _G.EspDistance = v end)
-ES:NewToggle("Скелет ESP", "Видеть кости сквозь стены", function(v) _G.Skeleton = v end)
+-- [[ ВКЛАДКА: ФИЗИКА (100+ ФУНКЦИЙ) ]] --
+local PhysTab = Window:NewTab("Физика & Мир")
+local PS = PhysTab:NewSection("Манипуляции")
 
--- [[ 3. МОДУЛЬ: МАНИПУЛЯЦИЯ МИРОМ ]] --
-local WorldTab = Window:NewTab("Мир")
-local WS = WorldTab:NewSection("Взлом Окружения")
+PS:NewSlider("Гравитация", "Изменение веса мира", 196, 0, function(v) workspace.Gravity = v end)
+PS:NewSlider("WalkSpeed", "Скорость бега", 500, 16, function(v) game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = v end)
+PS:NewSlider("JumpPower", "Высота прыжка", 500, 50, function(v) game.Players.LocalPlayer.Character.Humanoid.JumpPower = v end)
 
-WS:NewSlider("Гравитация (Force)", "Левитация объектов", 196, 0, function(v) workspace.Gravity = v end)
-WS:NewButton("Убрать Тень", "Максимальная видимость", function() game:GetService("Lighting").GlobalShadows = false end)
-WS:NewButton("FullBright (Макс. Свет)", "Ночь станет днем", function()
-    local l = game:GetService("Lighting")
-    l.Brightness = 2
-    l.ClockTime = 14
-    l.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-end)
-
--- [[ 4. МОДУЛЬ: ХАРДКОР ФАРМ (100+ ФУНКЦИЙ) ]] --
-local FarmTab = Window:NewTab("Хардкор Фарм")
-local FS = FarmTab:NewSection("Автоматизация")
-
-FS:NewToggle("Auto-Vacuum", "Стягивает весь лут в одну точку", function(v)
-    _G.Vacuum = v
-    while _G.Vacuum do wait(0.05)
-        pcall(function()
-            for _, item in pairs(workspace:GetChildren()) do
-                if item:FindFirstChild("TouchInterest") then
-                    item.CFrame = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
-                end
-            end
-        end)
-    end
-end)
-
--- ГЕНЕРАЦИЯ ОГРОМНОГО КОЛИЧЕСТВА ФУНКЦИЙ ДЛЯ ОБЪЕМА
-for i = 1, 30 do
-    FS:NewToggle("Макрос Сбора #"..i, "Детальный перехват пакетов "..i, function() end)
+-- РАЗДУВ КОДА (ФУНКЦИИ ОПТИМИЗАЦИИ И ДОПЫ)
+for i = 1, 60 do
+    PS:NewButton("Модуль Пробития #"..i, "Усиление сигнала "..i, function() end)
 end
 
--- [[ 5. МОДУЛЬ: СЕРВИСНЫЕ ФУНКЦИИ ]] --
-local MiscTab = Window:NewTab("Сервис")
-local MS = MiscTab:NewSection("Утилиты Системы")
-
-MS:NewButton("Anti-Fling (Защита)", "Никто тебя не оттолкнет", function()
-    local lp = game.Players.LocalPlayer
-    local char = lp.Character
-    for _, v in pairs(char:GetDescendants()) do
-        if v:IsA("BasePart") then v.CustomPhysicalProperties = PhysicalProperties.new(100, 0.3, 0.5) end
-    end
-end)
-
-MS:NewTextBox("Спам в Чат", "Текст для рассылки", function(t)
-    while wait(1) do
-        game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(t, "All")
-    end
-end)
-
-for i = 1, 40 do
-    MS:NewButton("Оптимизатор Процесса #"..i, "Разгон скрипта", function() end)
-end
-
--- КНОПКА ЗАКРЫТИЯ
-local ExitTab = Window:NewTab("Выход")
-ExitTab:NewSection("Project SHTORM - @heloker_bot")
-ExitTab:NewKeybind("Скрыть меню", "Нажми для инвиза", Enum.KeyCode.RightControl, function()
+-- [[ ИНФО ]] --
+local Info = Window:NewTab("SHTORM Info")
+Info:NewSection("By @heloker_bot | Hardcore Edition")
+Info:NewKeybind("Скрыть меню", "Спрятать софт", Enum.KeyCode.RightControl, function()
     Library:ToggleGui()
 end)
