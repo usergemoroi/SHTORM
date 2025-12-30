@@ -1,77 +1,123 @@
--- [[ PROJECT: SHTORM | MASTER V10 | BY @heloker_bot ]] --
--- [[ МЕТОД: PHYSICAL VELOCITY ANCHOR (БЕЗ ЭФФЕКТА БОЛОТА) ]] --
+-- [[ PROJECT: SHTORM | MASTER V11 (FIXED) ]] --
+-- [[ МЕТОД: CLEAN C-FRAME LOOP + ANTI-RUBBERBAND ]] --
 
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
 
 local Theme = {
     SchemeColor = Color3.fromRGB(255, 255, 255), 
-    Background = Color3.fromRGB(0, 0, 0),
+    Background = Color3.fromRGB(20, 20, 20),
     Header = Color3.fromRGB(0, 0, 0),
     TextColor = Color3.fromRGB(255, 255, 255),
-    ElementColor = Color3.fromRGB(15, 15, 15)
+    ElementColor = Color3.fromRGB(30, 30, 30)
 }
 
-local Window = Library.CreateLib("SHTORM | MASTER V10", Theme)
+local Window = Library.CreateLib("SHTORM | MASTER V11 (Fix)", Theme)
 local Main = Window:NewTab("Master")
-local Section = Main:NewSection("Система Master-Phase")
+local Section = Main:NewSection("Управление Полетом")
 
-Section:NewToggle("Активировать Master-Noclip", "Идеальный проход без вязкости", function(state)
-    _G.MasterActive = state
-    local lp = game.Players.LocalPlayer
-    local char = lp.Character or lp.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart")
-    
-    -- Создаем силовое поле для удержания высоты
-    local bV = Instance.new("BodyVelocity")
-    bV.Velocity = Vector3.new(0, 0, 0)
-    bV.MaxForce = Vector3.new(0, 0, 0)
-    bV.Parent = hrp
+-- Переменные для хранения состояния (чтобы не было наслоения циклов)
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local NoclipConnection = nil
+local CurrentBV = nil
+local CurrentBG = nil -- BodyGyro для стабилизации вращения
 
-    game:GetService("RunService").RenderStepped:Connect(function()
-        if _G.MasterActive and char and hrp then
-            -- 1. УДЕРЖАНИЕ ВЫСОТЫ (Анти-Болото)
-            bV.MaxForce = Vector3.new(0, 9e9, 0) -- Фиксируем Y
-            
-            -- 2. ПРОХОД СКВОЗЬ СТЕНЫ
-            for _, v in pairs(char:GetDescendants()) do
-                if v:IsA("BasePart") then v.CanCollide = false end
+_G.MasterSpeed = 1 -- Стандартная скорость
+
+Section:NewToggle("Активировать Master-Noclip", "Без откидывания назад", function(state)
+    local char = Players.LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChild("Humanoid")
+
+    if not char or not hrp or not hum then return end
+
+    if state then
+        -- 1. Очистка перед запуском (на случай багов)
+        if CurrentBV then CurrentBV:Destroy() end
+        if CurrentBG then CurrentBG:Destroy() end
+        if NoclipConnection then NoclipConnection:Disconnect() end
+
+        -- 2. Создаем физические стабилизаторы
+        CurrentBV = Instance.new("BodyVelocity")
+        CurrentBV.Velocity = Vector3.new(0, 0, 0)
+        CurrentBV.MaxForce = Vector3.new(9e9, 9e9, 9e9) -- Блокируем ВСЮ физику игры
+        CurrentBV.P = 1000
+        CurrentBV.Parent = hrp
+
+        CurrentBG = Instance.new("BodyGyro") -- Чтобы персонажа не крутило
+        CurrentBG.P = 9e9
+        CurrentBG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        CurrentBG.CFrame = hrp.CFrame
+        CurrentBG.Parent = hrp
+
+        -- Переводим гуманоид в состояние полета (отключает гравитацию движка)
+        hum.PlatformStand = true
+
+        -- 3. Запускаем ЕДИНЫЙ цикл
+        NoclipConnection = RunService.RenderStepped:Connect(function()
+            if not char or not hrp or not hum then 
+                if NoclipConnection then NoclipConnection:Disconnect() end
+                return 
             end
 
-            -- 3. УПРАВЛЯЕМОЕ ДВИЖЕНИЕ
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum.MoveDirection.Magnitude > 0 then
-                local speed = _G.MasterSpeed or 0.5
-                hrp.CFrame = hrp.CFrame + (hum.MoveDirection * speed)
-            end
+            -- А. ПРОХОД СКВОЗЬ СТЕНЫ (Только нужные части)
+            hrp.CanCollide = false
+            if char:FindFirstChild("UpperTorso") then char.UpperTorso.CanCollide = false end
+            if char:FindFirstChild("LowerTorso") then char.LowerTorso.CanCollide = false end
+            if char:FindFirstChild("Torso") then char.Torso.CanCollide = false end
+            if char:FindFirstChild("Head") then char.Head.CanCollide = false end
+
+            -- Б. ДВИЖЕНИЕ (CFRAME)
+            -- Используем LookVector камеры для движения вперед/назад, если нужно
+            -- Но оставим управление WASD как просили
             
-            -- Обнуление горизонтальных сил (Анти-откат)
+            local moveDir = hum.MoveDirection
+            if moveDir.Magnitude > 0 then
+                -- Нормализуем и умножаем на скорость
+                local newPos = hrp.CFrame + (moveDir * (_G.MasterSpeed or 0.5))
+                hrp.CFrame = newPos
+                
+                -- Поворачиваем персонажа туда, куда он идет
+                CurrentBG.CFrame = CFrame.new(hrp.Position, hrp.Position + moveDir)
+            else
+                -- Если не жмем кнопки - фиксируем вращение
+                CurrentBG.CFrame = hrp.CFrame
+            end
+
+            -- В. АНТИ-ОТКАТ (Сброс скоростей)
             hrp.Velocity = Vector3.new(0, 0, 0)
-            hum:ChangeState(11)
-        else
-            bV.MaxForce = Vector3.new(0, 0, 0) -- Выключаем при деактивации
+            hrp.RotVelocity = Vector3.new(0, 0, 0)
+        end)
+
+    else
+        -- ВЫКЛЮЧЕНИЕ
+        if NoclipConnection then 
+            NoclipConnection:Disconnect() 
+            NoclipConnection = nil
         end
-    end)
-end)
-
-Section:NewSlider("Скорость (Плавность)", "Ставь 0.3-0.7 для стабильности", 10, 1, function(v)
-    _G.MasterSpeed = v / 10
-end)
-
-Section:NewButton("Fix Floor (Стабилизатор)", "Если начал падать - жми один раз", function()
-    local hrp = game.Players.LocalPlayer.Character.HumanoidRootPart
-    hrp.Velocity = Vector3.new(0, 0, 0)
-    hrp.CFrame = hrp.CFrame * CFrame.new(0, 2, 0) -- Принудительно поднять
-end)
-
-Section:NewButton("Удалить Коллизии Карт", "Локальный снос", function()
-    for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("BasePart") and v.Name ~= "BasePlate" then
-            v.CanCollide = false
-            v.Transparency = 0.5
+        
+        if CurrentBV then CurrentBV:Destroy() CurrentBV = nil end
+        if CurrentBG then CurrentBG:Destroy() CurrentBG = nil end
+        
+        -- Возвращаем физику
+        if hum then 
+            hum.PlatformStand = false 
+            hum:ChangeState(Enum.HumanoidStateType.GettingUp) -- Чтобы не лежал на полу
         end
     end
 end)
 
-Section:NewKeybind("Меню", "R-CTRL", Enum.KeyCode.RightControl, function()
+Section:NewSlider("Скорость (Master)", "Регулировка скорости полета", 50, 5, function(v)
+    _G.MasterSpeed = v / 10 -- Делим на 10, чтобы слайдер 50 давал скорость 5
+end)
+
+Section:NewButton("Emergency Reset", "Если застрял", function()
+    local char = Players.LocalPlayer.Character
+    if char then
+        char:BreakJoints() -- Ресет персонажа
+    end
+end)
+
+Section:NewKeybind("Меню", "Скрыть/Показать", Enum.KeyCode.RightControl, function()
     Library:ToggleGui()
 end)
