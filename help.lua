@@ -1,81 +1,65 @@
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("SHTORM | MASTER V12 (Bypass)", {
-    SchemeColor = Color3.fromRGB(255, 0, 0), 
-    Background = Color3.fromRGB(15, 15, 15),
-    Header = Color3.fromRGB(10, 10, 10),
+local Window = Library.CreateLib("SHTORM | V13 (ANTI-TELEPORT)", {
+    SchemeColor = Color3.fromRGB(0, 255, 100), 
+    Background = Color3.fromRGB(10, 10, 10),
+    Header = Color3.fromRGB(5, 5, 5),
     TextColor = Color3.fromRGB(255, 255, 255),
-    ElementColor = Color3.fromRGB(25, 25, 25)
+    ElementColor = Color3.fromRGB(20, 20, 20)
 })
 
-local Main = Window:NewTab("Bypass")
-local Section = Main:NewSection("Anti-Cheat Bypass Noclip")
+local Main = Window:NewTab("Safe-Noclip")
+local Section = Main:NewSection("Метод изменения физики")
 
 local RunService = game:GetService("RunService")
 local LP = game.Players.LocalPlayer
-local Connection
+local NoclipLoop
 
-_G.NoclipState = false
-_G.NoclipSpeed = 1.5
+_G.NoclipType = "Physics" -- Тип прохода
 
-Section:NewToggle("Smart Noclip (No Death)", "Безопасный проход сквозь стены", function(state)
-    _G.NoclipState = state
-    
+Section:NewToggle("Активировать Physics-Noclip", "Самый безопасный от телепортов", function(state)
     if state then
-        Connection = RunService.Stepped:Connect(function()
-            if not _G.NoclipState then return end
-            
+        NoclipLoop = RunService.Stepped:Connect(function()
             local char = LP.Character
             if char then
-                -- 1. ОТКЛЮЧЕНИЕ КОЛЛИЗИИ (Более мягкое)
-                for _, v in pairs(char:GetDescendants()) do
-                    if v:IsA("BasePart") then
-                        v.CanCollide = false
+                -- 1. ОТКЛЮЧАЕМ СТОЛКНОВЕНИЯ
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
                     end
                 end
                 
-                -- 2. СИМУЛЯЦИЯ СКОРОСТИ (Обман сервера)
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                local hum = char:FindFirstChild("Humanoid")
-                
-                if hrp and hum then
-                    if hum.MoveDirection.Magnitude > 0 then
-                        -- Вместо телепортации задаем импульсную скорость
-                        local vel = hum.MoveDirection * (_G.NoclipSpeed * 20)
-                        hrp.Velocity = Vector3.new(vel.X, 0, vel.Z) -- Сообщаем серверу, что мы "идем"
-                        
-                        -- Небольшое смещение CFrame для плавности
-                        hrp.CFrame = hrp.CFrame + (hum.MoveDirection * (_G.NoclipSpeed / 3))
-                    else
-                        hrp.Velocity = Vector3.new(0, 0, 0)
-                    end
-                    
-                    -- Анти-гравитация (чтобы не убило при падении)
-                    if hrp.Velocity.Y < -50 then
-                        hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
-                    end
+                -- 2. ОБМАН СЕРВЕРА (HipHeight)
+                -- Мы немного приподнимаем гуманоида над землей программно
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    hum:ChangeState(11) -- Отключаем падение
                 end
             end
         end)
     else
-        if Connection then Connection:Disconnect() end
-        -- Возвращаем коллизию
+        if NoclipLoop then NoclipLoop:Disconnect() end
         local char = LP.Character
         if char then
-            for _, v in pairs(char:GetDescendants()) do
-                if v:IsA("BasePart") then v.CanCollide = true end
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = true end
             end
         end
     end
 end)
 
-Section:NewSlider("Скорость", "Не ставь больше 2.5 во избежание кика", 50, 5, function(v)
-    _G.NoclipSpeed = v / 10
+Section:NewButton("Мгновенный проход (TP-Forward)", "Телепорт на 5 метров вперед", function()
+    local char = LP.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        -- Короткий прыжок сквозь стену (часто античит не успевает среагировать)
+        hrp.CFrame = hrp.CFrame * CFrame.new(0, 0, -7) 
+    end
 end)
 
-Section:NewButton("Убрать Kill-Zones (Experimental)", "Удаляет зоны смерти (скрипты)", function()
+Section:NewButton("Destroy Anti-Cheat Parts", "Удаляет невидимые стены", function()
     for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("TouchTransmitter") then
-            v:Destroy() -- Удаляет сенсоры касания, которые могут убивать
+        if v:IsA("BasePart") and (v.Transparency == 1 or v.CanCollide == true) and v.Name:lower():find("clip") then
+            v:Destroy()
         end
     end
 end)
