@@ -1,123 +1,81 @@
--- [[ PROJECT: SHTORM | MASTER V11 (FIXED) ]] --
--- [[ МЕТОД: CLEAN C-FRAME LOOP + ANTI-RUBBERBAND ]] --
-
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-
-local Theme = {
-    SchemeColor = Color3.fromRGB(255, 255, 255), 
-    Background = Color3.fromRGB(20, 20, 20),
-    Header = Color3.fromRGB(0, 0, 0),
+local Window = Library.CreateLib("SHTORM | MASTER V12 (Bypass)", {
+    SchemeColor = Color3.fromRGB(255, 0, 0), 
+    Background = Color3.fromRGB(15, 15, 15),
+    Header = Color3.fromRGB(10, 10, 10),
     TextColor = Color3.fromRGB(255, 255, 255),
-    ElementColor = Color3.fromRGB(30, 30, 30)
-}
+    ElementColor = Color3.fromRGB(25, 25, 25)
+})
 
-local Window = Library.CreateLib("SHTORM | MASTER V11 (Fix)", Theme)
-local Main = Window:NewTab("Master")
-local Section = Main:NewSection("Управление Полетом")
+local Main = Window:NewTab("Bypass")
+local Section = Main:NewSection("Anti-Cheat Bypass Noclip")
 
--- Переменные для хранения состояния (чтобы не было наслоения циклов)
 local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local NoclipConnection = nil
-local CurrentBV = nil
-local CurrentBG = nil -- BodyGyro для стабилизации вращения
+local LP = game.Players.LocalPlayer
+local Connection
 
-_G.MasterSpeed = 1 -- Стандартная скорость
+_G.NoclipState = false
+_G.NoclipSpeed = 1.5
 
-Section:NewToggle("Активировать Master-Noclip", "Без откидывания назад", function(state)
-    local char = Players.LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChild("Humanoid")
-
-    if not char or not hrp or not hum then return end
-
+Section:NewToggle("Smart Noclip (No Death)", "Безопасный проход сквозь стены", function(state)
+    _G.NoclipState = state
+    
     if state then
-        -- 1. Очистка перед запуском (на случай багов)
-        if CurrentBV then CurrentBV:Destroy() end
-        if CurrentBG then CurrentBG:Destroy() end
-        if NoclipConnection then NoclipConnection:Disconnect() end
-
-        -- 2. Создаем физические стабилизаторы
-        CurrentBV = Instance.new("BodyVelocity")
-        CurrentBV.Velocity = Vector3.new(0, 0, 0)
-        CurrentBV.MaxForce = Vector3.new(9e9, 9e9, 9e9) -- Блокируем ВСЮ физику игры
-        CurrentBV.P = 1000
-        CurrentBV.Parent = hrp
-
-        CurrentBG = Instance.new("BodyGyro") -- Чтобы персонажа не крутило
-        CurrentBG.P = 9e9
-        CurrentBG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-        CurrentBG.CFrame = hrp.CFrame
-        CurrentBG.Parent = hrp
-
-        -- Переводим гуманоид в состояние полета (отключает гравитацию движка)
-        hum.PlatformStand = true
-
-        -- 3. Запускаем ЕДИНЫЙ цикл
-        NoclipConnection = RunService.RenderStepped:Connect(function()
-            if not char or not hrp or not hum then 
-                if NoclipConnection then NoclipConnection:Disconnect() end
-                return 
-            end
-
-            -- А. ПРОХОД СКВОЗЬ СТЕНЫ (Только нужные части)
-            hrp.CanCollide = false
-            if char:FindFirstChild("UpperTorso") then char.UpperTorso.CanCollide = false end
-            if char:FindFirstChild("LowerTorso") then char.LowerTorso.CanCollide = false end
-            if char:FindFirstChild("Torso") then char.Torso.CanCollide = false end
-            if char:FindFirstChild("Head") then char.Head.CanCollide = false end
-
-            -- Б. ДВИЖЕНИЕ (CFRAME)
-            -- Используем LookVector камеры для движения вперед/назад, если нужно
-            -- Но оставим управление WASD как просили
+        Connection = RunService.Stepped:Connect(function()
+            if not _G.NoclipState then return end
             
-            local moveDir = hum.MoveDirection
-            if moveDir.Magnitude > 0 then
-                -- Нормализуем и умножаем на скорость
-                local newPos = hrp.CFrame + (moveDir * (_G.MasterSpeed or 0.5))
-                hrp.CFrame = newPos
+            local char = LP.Character
+            if char then
+                -- 1. ОТКЛЮЧЕНИЕ КОЛЛИЗИИ (Более мягкое)
+                for _, v in pairs(char:GetDescendants()) do
+                    if v:IsA("BasePart") then
+                        v.CanCollide = false
+                    end
+                end
                 
-                -- Поворачиваем персонажа туда, куда он идет
-                CurrentBG.CFrame = CFrame.new(hrp.Position, hrp.Position + moveDir)
-            else
-                -- Если не жмем кнопки - фиксируем вращение
-                CurrentBG.CFrame = hrp.CFrame
+                -- 2. СИМУЛЯЦИЯ СКОРОСТИ (Обман сервера)
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local hum = char:FindFirstChild("Humanoid")
+                
+                if hrp and hum then
+                    if hum.MoveDirection.Magnitude > 0 then
+                        -- Вместо телепортации задаем импульсную скорость
+                        local vel = hum.MoveDirection * (_G.NoclipSpeed * 20)
+                        hrp.Velocity = Vector3.new(vel.X, 0, vel.Z) -- Сообщаем серверу, что мы "идем"
+                        
+                        -- Небольшое смещение CFrame для плавности
+                        hrp.CFrame = hrp.CFrame + (hum.MoveDirection * (_G.NoclipSpeed / 3))
+                    else
+                        hrp.Velocity = Vector3.new(0, 0, 0)
+                    end
+                    
+                    -- Анти-гравитация (чтобы не убило при падении)
+                    if hrp.Velocity.Y < -50 then
+                        hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+                    end
+                end
             end
-
-            -- В. АНТИ-ОТКАТ (Сброс скоростей)
-            hrp.Velocity = Vector3.new(0, 0, 0)
-            hrp.RotVelocity = Vector3.new(0, 0, 0)
         end)
-
     else
-        -- ВЫКЛЮЧЕНИЕ
-        if NoclipConnection then 
-            NoclipConnection:Disconnect() 
-            NoclipConnection = nil
-        end
-        
-        if CurrentBV then CurrentBV:Destroy() CurrentBV = nil end
-        if CurrentBG then CurrentBG:Destroy() CurrentBG = nil end
-        
-        -- Возвращаем физику
-        if hum then 
-            hum.PlatformStand = false 
-            hum:ChangeState(Enum.HumanoidStateType.GettingUp) -- Чтобы не лежал на полу
+        if Connection then Connection:Disconnect() end
+        -- Возвращаем коллизию
+        local char = LP.Character
+        if char then
+            for _, v in pairs(char:GetDescendants()) do
+                if v:IsA("BasePart") then v.CanCollide = true end
+            end
         end
     end
 end)
 
-Section:NewSlider("Скорость (Master)", "Регулировка скорости полета", 50, 5, function(v)
-    _G.MasterSpeed = v / 10 -- Делим на 10, чтобы слайдер 50 давал скорость 5
+Section:NewSlider("Скорость", "Не ставь больше 2.5 во избежание кика", 50, 5, function(v)
+    _G.NoclipSpeed = v / 10
 end)
 
-Section:NewButton("Emergency Reset", "Если застрял", function()
-    local char = Players.LocalPlayer.Character
-    if char then
-        char:BreakJoints() -- Ресет персонажа
+Section:NewButton("Убрать Kill-Zones (Experimental)", "Удаляет зоны смерти (скрипты)", function()
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("TouchTransmitter") then
+            v:Destroy() -- Удаляет сенсоры касания, которые могут убивать
+        end
     end
-end)
-
-Section:NewKeybind("Меню", "Скрыть/Показать", Enum.KeyCode.RightControl, function()
-    Library:ToggleGui()
 end)
