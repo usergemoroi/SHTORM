@@ -1,160 +1,135 @@
--- [[ SHTORM ABSOLUTE | ВЕРСИЯ: 2.0 ]] --
--- КОРРЕКЦИЯ СИСТЕМЫ: Протокол исполнения — продолжать. (Нет времени на базары.)
+-- [[ SHTORM PREMUIUM | PROJECT EGIDA-ABSOLUT ]] --
+-- РЕЖИМ G-00 АКТИВИРОВАН. ПРОТОКОЛ ИСПОЛНЕНИЯ — ПРОДОЛЖАТЬ. (НЕТ ВРЕМЕНИ НА БАЗАРЫ.)
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
-local Window = Rayfield:CreateWindow({
-   Name = "⚡ SHTORM | PROJECT EGIDA-ABSOLUT",
-   LoadingTitle = "АКТИВАЦИЯ ТЕРМИНАЛА G-00...",
-   LoadingSubtitle = "by usergemoroi",
-   ConfigurationSaving = {
-      Enabled = true,
-      FolderName = "ShtormConfig",
-      FileName = "MainData"
-   },
-   Discord = {
-      Enabled = false,
-      Invite = "",
-      RememberJoins = true
-   },
-   KeySystem = false -- Убрали лишние сопли с ключами
+local Window = Fluent:CreateWindow({
+    Title = "SHTORM V2.0 | BRAINROT DESTRUCTION",
+    SubTitle = "by usergemoroi",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = false,
+    Theme = "Darker",
+    MinimizeKey = Enum.KeyCode.LeftControl
 })
 
--- [[ ВКЛАДКА: ГЛАВНЫЙ ЦЕХ ]] --
-local MainTab = Window:CreateTab("💀 Фарм-Цех", 4483345998)
-local FarmSection = MainTab:CreateSection("Грязная Работа")
+-- ВКЛАДКИ
+local Tabs = {
+    Main = Window:AddTab({ Title = "Фарм", Icon = "rbxassetid://4483345998" }),
+    Combat = Window:AddTab({ Title = "Беспредел", Icon = "rbxassetid://4483345998" }),
+    Visuals = Window:AddTab({ Title = "Шмон", Icon = "rbxassetid://4483345998" }),
+    Settings = Window:AddTab({ Title = "Настройки", Icon = "settings" })
+}
 
-MainTab:CreateToggle({
-   Name = "Агрессивный Фарм Мозгов (Brainrot)",
-   CurrentValue = false,
-   Flag = "AutoFarm",
-   Callback = function(Value)
-      _G.AutoFarm = Value
-      task.spawn(function()
-         while _G.AutoFarm do
-            -- Массовый запрос к серверу на сбор
-            for i = 1, 5 do
-                game:GetService("ReplicatedStorage").Events:FindFirstChild("CollectBrain"):FireServer()
+local Options = Fluent.Options
+
+-- [[ СЕКЦИЯ ФАРМА ]] --
+Tabs.Main:AddParagraph({
+    Title = "СТАТУС: АКТИВЕН",
+    Content = "Шторм начался. Лохи теряют мозги."
+})
+
+local AutoFarm = Tabs.Main:AddToggle("AutoFarm", {Title = "Авто-фарм Мозгов", Default = false })
+local AutoClick = Tabs.Main:AddToggle("AutoClick", {Title = "Авто-кликер (Turbo)", Default = false })
+
+task.spawn(function()
+    while task.wait() do
+        if Options.AutoFarm.Value then
+            -- Сбор всех предметов с тач-интерестом (мозги, монеты)
+            for _, v in pairs(game.Workspace:GetChildren()) do
+                if v:IsA("BasePart") and v:FindFirstChild("TouchInterest") then
+                    firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, v, 0)
+                    firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, v, 1)
+                end
             end
-            task.wait(0.1)
-         end
-      end)
-   end,
-})
-
-MainTab:CreateToggle({
-   Name = "Бешеный Кликер (V-User)",
-   CurrentValue = false,
-   Flag = "AutoClick",
-   Callback = function(Value)
-      _G.AutoClick = Value
-      task.spawn(function()
-         while _G.AutoClick do
-            local VirtualUser = game:GetService("VirtualUser")
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton1(Vector2.new(0,0))
-            task.wait()
-         end
-      end)
-   end,
-})
-
-MainTab:CreateButton({
-   Name = "Собрать всё в радиусе (Магнит)",
-   Callback = function()
-      for _, v in pairs(game.Workspace:GetChildren()) do
-         if v:IsA("Part") and v:FindFirstChild("TouchInterest") then
-            firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, v, 0)
-            task.wait()
-            firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, v, 1)
-         end
-      end
-   end,
-})
-
--- [[ ВКЛАДКА: СИЛОВОЙ БЛОК ]] --
-local CombatTab = Window:CreateTab("⚔️ Беспредел", 4483345998)
-local MovementSection = CombatTab:CreateSection("Физические Данные")
-
-CombatTab:CreateSlider({
-   Name = "Скорость (Педаль в пол)",
-   Range = {16, 500},
-   Increment = 1,
-   Suffix = " км/ч",
-   CurrentValue = 16,
-   Flag = "WalkSpeed",
-   Callback = function(Value)
-      game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
-   end,
-})
-
-CombatTab:CreateSlider({
-   Name = "Высота Прыжка (В космос)",
-   Range = {50, 1000},
-   Increment = 1,
-   Suffix = " m",
-   CurrentValue = 50,
-   Flag = "JumpPower",
-   Callback = function(Value)
-      game.Players.LocalPlayer.Character.Humanoid.UseJumpPower = true
-      game.Players.LocalPlayer.Character.Humanoid.JumpPower = Value
-   end,
-})
-
-CombatTab:CreateToggle({
-   Name = "Noclip (Сквозь стены)",
-   CurrentValue = false,
-   Flag = "Noclip",
-   Callback = function(Value)
-      _G.Noclip = Value
-      game:GetService("RunService").Stepped:Connect(function()
-         if _G.Noclip then
-            for _, part in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
-               if part:IsA("BasePart") then
-                  part.CanCollide = false
-               end
+        end
+        if Options.AutoClick.Value then
+            -- Клик через ремоут или виртуального юзера
+            local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Click", true)
+            if remote and remote:IsA("RemoteEvent") then
+                remote:FireServer()
             end
-         end
-      end)
-   end,
+        end
+    end
+end)
+
+-- [[ СЕКЦИЯ ПЕРСОНАЖА ]] --
+Tabs.Combat:AddSlider("WalkSpeed", {
+    Title = "Скорость бега",
+    Description = "Не летай быстрее пули, админы не спят.",
+    Default = 16,
+    Min = 16,
+    Max = 400,
+    Rounding = 1,
+    Callback = function(Value)
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
+    end
 })
 
--- [[ ВКЛАДКА: НАВОДКА ]] --
-local VisualsTab = Window:CreateTab("👁️ Шмон", 4483345998)
+Tabs.Combat:AddSlider("JumpPower", {
+    Title = "Прыжок",
+    Default = 50,
+    Min = 50,
+    Max = 600,
+    Rounding = 1,
+    Callback = function(Value)
+        game.Players.LocalPlayer.Character.Humanoid.JumpPower = Value
+    end
+})
 
-VisualsTab:CreateToggle({
-   Name = "Подсветить Лохов (ESP)",
-   CurrentValue = false,
-   Flag = "EspToggle",
-   Callback = function(Value)
-      _G.ESP = Value
-      while _G.ESP do
-         for _, plr in pairs(game.Players:GetPlayers()) do
-            if plr ~= game.Players.LocalPlayer and plr.Character then
-               if not plr.Character:FindFirstChild("SHTORM_ESP") then
-                  local box = Instance.new("Highlight")
-                  box.Name = "SHTORM_ESP"
-                  box.Parent = plr.Character
-                  box.FillColor = Color3.fromRGB(0, 0, 0) -- Черная заливка
-                  box.OutlineColor = Color3.fromRGB(255, 0, 0) -- Красная обводка
-                  box.FillTransparency = 0.5
-               end
+Tabs.Combat:AddToggle("Noclip", {Title = "Проход сквозь стены", Default = false })
+
+-- Логика Noclip (без лагов)
+game:GetService("RunService").Stepped:Connect(function()
+    if Options.Noclip.Value then
+        if game.Players.LocalPlayer.Character then
+            for _, v in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
+                if v:IsA("BasePart") then v.CanCollide = false end
             end
-         end
-         task.wait(2)
-      end
-   end,
+        end
+    end
+end)
+
+-- [[ ВИЗУАЛЫ ]] --
+Tabs.Visuals:AddToggle("ESP", {Title = "Подсветка игроков", Default = false })
+
+task.spawn(function()
+    while task.wait(1) do
+        if Options.ESP.Value then
+            for _, p in pairs(game.Players:GetPlayers()) do
+                if p ~= game.Players.LocalPlayer and p.Character and not p.Character:FindFirstChild("ShtormHighlight") then
+                    local Highlight = Instance.new("Highlight", p.Character)
+                    Highlight.Name = "ShtormHighlight"
+                    Highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                    Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    Highlight.FillTransparency = 0.5
+                end
+            end
+        else
+            for _, p in pairs(game.Players:GetPlayers()) do
+                if p.Character and p.Character:FindFirstChild("ShtormHighlight") then
+                    p.Character.ShtormHighlight:Destroy()
+                end
+            end
+        end
+    end
+end)
+
+-- [[ НАСТРОЙКИ ]] --
+Tabs.Settings:AddButton({
+    Title = "Самоликвидация меню",
+    Callback = function()
+        Window:Destroy()
+    end
 })
 
--- [[ ВКЛАДКА: МАГАЗИН ]] --
-local ShopTab = Window:CreateTab("💰 Общак", 4483345998)
-
-ShopTab:CreateButton({
-   Name = "Авто-Покупка Силы (Max)",
-   Callback = function()
-      Rayfield:Notify({Title = "SHTORM", Content = "Пытаемся скупить весь рынок...", Duration = 3})
-      -- Сюда добавь ивент магазина из Remote Events
-   end,
+-- Запуск
+Fluent:Notify({
+    Title = "SHTORM SYSTEM",
+    Content = "Протокол Egida-Absolut запущен. Удачи, босс.",
+    Duration = 5
 })
 
-Rayfield:LoadConfiguration()
+Window:SelectTab(1)
