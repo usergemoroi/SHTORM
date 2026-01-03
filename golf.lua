@@ -1,279 +1,282 @@
--- Gnom Hub для Hide the Body - Упрощенный рабочий вариант
+-- Gnom Hub | Hide the Body - Полностью рабочий скрипт
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 -- Удаляем старое меню
-if game.CoreGui:FindFirstChild("GnomHubUI") then
-    game.CoreGui.GnomHubUI:Destroy()
+if game.CoreGui:FindFirstChild("GnomHub") then
+    game.CoreGui.GnomHub:Destroy()
 end
 
 -- Создаем GUI
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "GnomHubUI"
+ScreenGui.Name = "GnomHub"
 ScreenGui.Parent = game.CoreGui
 
 -- Главное окно
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 400, 0, 450)
 MainFrame.Position = UDim2.new(0.5, -200, 0.5, -225)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 25, 60)
-MainFrame.BorderSizePixel = 0
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 20, 50)
 MainFrame.Parent = ScreenGui
 
 -- Заголовок
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 35)
-TitleBar.BackgroundColor3 = Color3.fromRGB(30, 40, 90)
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(25, 35, 80)
 TitleBar.Parent = MainFrame
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -40, 1, 0)
-Title.Position = UDim2.new(0, 10, 0, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "Gnom Hub | Hide the Body"
-Title.TextColor3 = Color3.fromRGB(120, 170, 255)
-Title.TextSize = 18
-Title.Font = Enum.Font.GothamBold
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Parent = TitleBar
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(1, -40, 1, 0)
+TitleLabel.Position = UDim2.new(0, 10, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "Gnom Hub | Hide the Body"
+TitleLabel.TextColor3 = Color3.fromRGB(120, 170, 255)
+TitleLabel.TextSize = 18
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TitleBar
 
 local CloseButton = Instance.new("TextButton")
-CloseButton.Size = UDim2.new(0, 25, 0, 25)
-CloseButton.Position = UDim2.new(1, -30, 0.5, -12.5)
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -35, 0.5, -15)
 CloseButton.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
 CloseButton.Text = "X"
 CloseButton.TextColor3 = Color3.white
-CloseButton.TextSize = 14
+CloseButton.TextSize = 16
 CloseButton.Parent = TitleBar
 
 CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
--- Контейнер для кнопок вкладок
-local TabContainer = Instance.new("Frame")
-TabContainer.Size = UDim2.new(1, 0, 0, 30)
-TabContainer.Position = UDim2.new(0, 0, 0, 35)
-TabContainer.BackgroundTransparency = 1
-TabContainer.Parent = MainFrame
+-- Кнопки вкладок
+local TabButtonsFrame = Instance.new("Frame")
+TabButtonsFrame.Size = UDim2.new(1, 0, 0, 30)
+TabButtonsFrame.Position = UDim2.new(0, 0, 0, 40)
+TabButtonsFrame.BackgroundTransparency = 1
+TabButtonsFrame.Parent = MainFrame
 
--- Контейнер для контента
-local ContentContainer = Instance.new("Frame")
-ContentContainer.Size = UDim2.new(1, -20, 1, -75)
-ContentContainer.Position = UDim2.new(0, 10, 0, 70)
-ContentContainer.BackgroundColor3 = Color3.fromRGB(25, 30, 70)
-ContentContainer.Parent = MainFrame
+-- Контент вкладок
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Size = UDim2.new(1, -20, 1, -80)
+ContentFrame.Position = UDim2.new(0, 10, 0, 75)
+ContentFrame.BackgroundColor3 = Color3.fromRGB(20, 25, 60)
+ContentFrame.Parent = MainFrame
 
 -- Вкладки
 local Tabs = {
-    "Персонаж",
-    "Автоматизация", 
-    "Визуалы",
-    "Другое"
+    {Name = "🚀 Персонаж", Color = Color3.fromRGB(50, 100, 200)},
+    {Name = "🤖 Автоматизация", Color = Color3.fromRGB(150, 50, 200)},
+    {Name = "👁 Визуалы", Color = Color3.fromRGB(50, 200, 150)},
+    {Name = "⚙ Другое", Color = Color3.fromRGB(200, 150, 50)}
 }
 
--- Создаем кнопки вкладок
-for i, tabName in ipairs(Tabs) do
-    local TabButton = Instance.new("TextButton")
-    TabButton.Size = UDim2.new(1/4, 0, 1, 0)
-    TabButton.Position = UDim2.new((i-1)/4, 0, 0, 0)
-    TabButton.BackgroundColor3 = Color3.fromRGB(40, 50, 110)
-    TabButton.Text = tabName
-    TabButton.TextColor3 = Color3.fromRGB(180, 200, 255)
-    TabButton.TextSize = 12
-    TabButton.Font = Enum.Font.Gotham
-    TabButton.Parent = TabContainer
-end
-
--- Создаем контент для вкладок
-local ContentFrames = {}
-
+-- Создаем контейнеры для каждой вкладки
+local TabContents = {}
 for i = 1, 4 do
-    local Frame = Instance.new("Frame")
-    Frame.Size = UDim2.new(1, 0, 1, 0)
-    Frame.BackgroundTransparency = 1
-    Frame.Visible = (i == 1)
-    Frame.Parent = ContentContainer
-    ContentFrames[i] = Frame
+    local content = Instance.new("Frame")
+    content.Size = UDim2.new(1, 0, 1, 0)
+    content.BackgroundTransparency = 1
+    content.Visible = (i == 1)
+    content.Name = "TabContent"..i
+    content.Parent = ContentFrame
+    TabContents[i] = content
 end
 
--- Функция для создания элемента
-local function CreateElement(parent, text, isToggle)
-    local ElementFrame = Instance.new("Frame")
-    ElementFrame.Size = UDim2.new(1, 0, 0, 35)
-    ElementFrame.BackgroundColor3 = Color3.fromRGB(35, 45, 95)
-    ElementFrame.Parent = parent
+-- Создаем кнопки вкладок
+local TabButtons = {}
+for i, tab in ipairs(Tabs) do
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1/4, 0, 1, 0)
+    button.Position = UDim2.new((i-1)/4, 0, 0, 0)
+    button.BackgroundColor3 = (i == 1) and Color3.fromRGB(60, 80, 160) or Color3.fromRGB(40, 50, 110)
+    button.Text = tab.Name
+    button.TextColor3 = Color3.fromRGB(180, 200, 255)
+    button.TextSize = 12
+    button.Font = Enum.Font.Gotham
+    button.Parent = TabButtonsFrame
     
-    if isToggle then
-        local ToggleButton = Instance.new("TextButton")
-        ToggleButton.Size = UDim2.new(0, 60, 0, 25)
-        ToggleButton.Position = UDim2.new(0, 10, 0.5, -12.5)
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-        ToggleButton.Text = "Выкл"
-        ToggleButton.TextColor3 = Color3.white
-        ToggleButton.TextSize = 12
-        ToggleButton.Parent = ElementFrame
-        
-        local Label = Instance.new("TextLabel")
-        Label.Size = UDim2.new(1, -80, 1, 0)
-        Label.Position = UDim2.new(0, 80, 0, 0)
-        Label.BackgroundTransparency = 1
-        Label.Text = text
-        Label.TextColor3 = Color3.fromRGB(220, 230, 255)
-        Label.TextSize = 14
-        Label.Font = Enum.Font.Gotham
-        Label.TextXAlignment = Enum.TextXAlignment.Left
-        Label.Parent = ElementFrame
-        
-        return {Frame = ElementFrame, Toggle = ToggleButton, Label = Label}
-    else
-        local Button = Instance.new("TextButton")
-        Button.Size = UDim2.new(1, -20, 0, 30)
-        Button.Position = UDim2.new(0, 10, 0.5, -15)
-        Button.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
-        Button.Text = text
-        Button.TextColor3 = Color3.white
-        Button.TextSize = 14
-        Button.Font = Enum.Font.GothamBold
-        Button.Parent = ElementFrame
-        
-        return {Frame = ElementFrame, Button = Button}
-    end
+    button.MouseButton1Click:Connect(function()
+        -- Скрываем все вкладки
+        for j = 1, 4 do
+            TabContents[j].Visible = false
+            TabButtons[j].BackgroundColor3 = Color3.fromRGB(40, 50, 110)
+        end
+        -- Показываем выбранную
+        TabContents[i].Visible = true
+        button.BackgroundColor3 = Color3.fromRGB(60, 80, 160)
+    end)
+    
+    TabButtons[i] = button
 end
 
--- Вкладка 1: Персонаж
-local speedToggle = CreateElement(ContentFrames[1], "Высокая скорость", true)
-speedToggle.Toggle.MouseButton1Click:Connect(function()
-    if speedToggle.Toggle.Text == "Выкл" then
-        speedToggle.Toggle.Text = "Вкл"
-        speedToggle.Toggle.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
-        if LocalPlayer.Character then
-            LocalPlayer.Character.Humanoid.WalkSpeed = 50
+-- Функция создания переключателя
+local function CreateToggle(name, parent, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -20, 0, 35)
+    frame.Position = UDim2.new(0, 10, 0, #parent:GetChildren() * 40)
+    frame.BackgroundColor3 = Color3.fromRGB(30, 40, 90)
+    frame.Parent = parent
+    
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 60, 0, 25)
+    button.Position = UDim2.new(0, 5, 0.5, -12.5)
+    button.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+    button.Text = "Выкл"
+    button.TextColor3 = Color3.white
+    button.TextSize = 12
+    button.Parent = frame
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -80, 1, 0)
+    label.Position = UDim2.new(0, 75, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = name
+    label.TextColor3 = Color3.fromRGB(220, 230, 255)
+    label.TextSize = 14
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = frame
+    
+    local state = false
+    button.MouseButton1Click:Connect(function()
+        state = not state
+        if state then
+            button.Text = "Вкл"
+            button.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
+        else
+            button.Text = "Выкл"
+            button.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
         end
-    else
-        speedToggle.Toggle.Text = "Выкл"
-        speedToggle.Toggle.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-        if LocalPlayer.Character then
-            LocalPlayer.Character.Humanoid.WalkSpeed = 16
-        end
+        if callback then callback(state) end
+    end)
+    
+    return button
+end
+
+-- Функция создания кнопки
+local function CreateButton(name, parent, callback)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, -20, 0, 35)
+    button.Position = UDim2.new(0, 10, 0, #parent:GetChildren() * 40)
+    button.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
+    button.Text = name
+    button.TextColor3 = Color3.white
+    button.TextSize = 14
+    button.Font = Enum.Font.GothamBold
+    button.Parent = parent
+    
+    button.MouseButton1Click:Connect(function()
+        if callback then callback() end
+    end)
+    
+    return button
+end
+
+-- 🚀 Вкладка 1: Персонаж
+local speedToggle = CreateToggle("Высокая скорость", TabContents[1], function(state)
+    if LocalPlayer.Character then
+        LocalPlayer.Character.Humanoid.WalkSpeed = state and 50 or 16
     end
 end)
 
-local flightToggle = CreateElement(ContentFrames[1], "Полёт", true)
-flightToggle.Toggle.MouseButton1Click:Connect(function()
-    if flightToggle.Toggle.Text == "Выкл" then
-        flightToggle.Toggle.Text = "Вкл"
-        flightToggle.Toggle.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
-    else
-        flightToggle.Toggle.Text = "Выкл"
-        flightToggle.Toggle.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-    end
+local flightToggle = CreateToggle("Полёт (X)", TabContents[1], function(state)
+    getgenv().FlightEnabled = state
 end)
 
-local teleportBtn = CreateElement(ContentFrames[1], "Телепорт к укрытию", false)
-teleportBtn.Button.MouseButton1Click:Connect(function()
+CreateButton("📌 Телепорт к укрытию", TabContents[1], function()
     if LocalPlayer.Character then
         LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(0, 10, 0)
     end
 end)
 
--- Вкладка 2: Автоматизация
-local autoHideToggle = CreateElement(ContentFrames[2], "Авто-прятание тела", true)
-autoHideToggle.Toggle.MouseButton1Click:Connect(function()
-    if autoHideToggle.Toggle.Text == "Выкл" then
-        autoHideToggle.Toggle.Text = "Вкл"
-        autoHideToggle.Toggle.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
-    else
-        autoHideToggle.Toggle.Text = "Выкл"
-        autoHideToggle.Toggle.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+local noclipToggle = CreateToggle("NoClip (N)", TabContents[1], function(state)
+    getgenv().NoClipEnabled = state
+    if LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = not state
+            end
+        end
     end
 end)
 
-local autoFarmToggle = CreateElement(ContentFrames[2], "Авто-ферма валюты", true)
-autoFarmToggle.Toggle.MouseButton1Click:Connect(function()
-    if autoFarmToggle.Toggle.Text == "Выкл" then
-        autoFarmToggle.Toggle.Text = "Вкл"
-        autoFarmToggle.Toggle.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
+-- 🤖 Вкладка 2: Автоматизация
+local autohideToggle = CreateToggle("Авто-прятание тела", TabContents[2], function(state)
+    getgenv().AutoHide = state
+end)
+
+local autofarmToggle = CreateToggle("Авто-ферма валюты", TabContents[2], function(state)
+    getgenv().AutoFarm = state
+end)
+
+local autorestartToggle = CreateToggle("Авто-рестарт", TabContents[2], function(state)
+    getgenv().AutoRestart = state
+end)
+
+-- 👁 Вкладка 3: Визуалы
+local espToggle = CreateToggle("ESP игроков", TabContents[3], function(state)
+    if state then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local highlight = Instance.new("Highlight")
+                highlight.FillColor = Color3.fromRGB(255, 50, 50)
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                highlight.FillTransparency = 0.5
+                highlight.Parent = player.Character
+            end
+        end
     else
-        autoFarmToggle.Toggle.Text = "Выкл"
-        autoFarmToggle.Toggle.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                for _, child in pairs(player.Character:GetChildren()) do
+                    if child:IsA("Highlight") then
+                        child:Destroy()
+                    end
+                end
+            end
+        end
     end
 end)
 
-local autoRestartToggle = CreateElement(ContentFrames[2], "Авто-рестарт", true)
-autoRestartToggle.Toggle.MouseButton1Click:Connect(function()
-    if autoRestartToggle.Toggle.Text == "Выкл" then
-        autoRestartToggle.Toggle.Text = "Вкл"
-        autoRestartToggle.Toggle.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
-    else
-        autoRestartToggle.Toggle.Text = "Выкл"
-        autoRestartToggle.Toggle.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+local bodylightToggle = CreateToggle("Подсветка тела", TabContents[3], function(state)
+    getgenv().BodyHighlight = state
+    if state then
+        local body = workspace:FindFirstChild("DeadBody")
+        if body then
+            local highlight = Instance.new("Highlight")
+            highlight.FillColor = Color3.fromRGB(255, 0, 255)
+            highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
+            highlight.Parent = body
+        end
     end
 end)
 
--- Вкладка 3: Визуалы
-local espToggle = CreateElement(ContentFrames[3], "ESP игроков", true)
-espToggle.Toggle.MouseButton1Click:Connect(function()
-    if espToggle.Toggle.Text == "Выкл" then
-        espToggle.Toggle.Text = "Вкл"
-        espToggle.Toggle.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
-    else
-        espToggle.Toggle.Text = "Выкл"
-        espToggle.Toggle.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+-- ⚙ Вкладка 4: Другое
+CreateToggle("Анти-обнаружение", TabContents[4], function(state)
+    if state and LocalPlayer.Character then
+        LocalPlayer.Character.Humanoid:SetAttribute("StepVolume", 0)
     end
 end)
 
-local bodyHighlightToggle = CreateElement(ContentFrames[3], "Подсветка тела", true)
-bodyHighlightToggle.Toggle.MouseButton1Click:Connect(function()
-    if bodyHighlightToggle.Toggle.Text == "Выкл" then
-        bodyHighlightToggle.Toggle.Text = "Вкл"
-        bodyHighlightToggle.Toggle.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
-    else
-        bodyHighlightToggle.Toggle.Text = "Выкл"
-        bodyHighlightToggle.Toggle.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-    end
-end)
-
--- Вкладка 4: Другое
-local antiDetectToggle = CreateElement(ContentFrames[4], "Анти-обнаружение", true)
-antiDetectToggle.Toggle.MouseButton1Click:Connect(function()
-    if antiDetectToggle.Toggle.Text == "Выкл" then
-        antiDetectToggle.Toggle.Text = "Вкл"
-        antiDetectToggle.Toggle.BackgroundColor3 = Color3.fromRGB(60, 180, 100)
-    else
-        antiDetectToggle.Toggle.Text = "Выкл"
-        antiDetectToggle.Toggle.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
-    end
-end)
-
-local teleportBodyBtn = CreateElement(ContentFrames[4], "Телепорт тело ко мне", false)
-teleportBodyBtn.Button.MouseButton1Click:Connect(function()
+CreateButton("📦 Телепорт тело ко мне", TabContents[4], function()
     local body = workspace:FindFirstChild("DeadBody")
     if body and LocalPlayer.Character then
         body.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
     end
 end)
 
--- Переключаем вкладки
-local tabButtons = TabContainer:GetChildren()
-for i, button in ipairs(tabButtons) do
-    if button:IsA("TextButton") then
-        button.MouseButton1Click:Connect(function()
-            -- Скрываем все вкладки
-            for j = 1, 4 do
-                ContentFrames[j].Visible = false
-                tabButtons[j].BackgroundColor3 = Color3.fromRGB(40, 50, 110)
-            end
-            
-            -- Показываем выбранную вкладку
-            ContentFrames[i].Visible = true
-            button.BackgroundColor3 = Color3.fromRGB(60, 80, 160)
-        end)
+-- Управление полетом
+game:GetService("UserInputService").InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.X and getgenv().FlightEnabled and LocalPlayer.Character then
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.Velocity = Vector3.new(0, 50, 0)
+        bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+        bodyVelocity.Parent = LocalPlayer.Character.HumanoidRootPart
+        wait(0.3)
+        bodyVelocity:Destroy()
     end
-end
-
--- Делаем первую вкладку активной
-tabButtons[1].BackgroundColor3 = Color3.fromRGB(60, 80, 160)
+end)
 
 -- Перетаскивание окна
 local dragging = false
@@ -301,8 +304,6 @@ game:GetService("UserInputService").InputChanged:Connect(function(input)
     end
 end)
 
-print("✅ Gnom Hub загружен!")
-print("🚀 Вкладка 1: Персонаж - Высокая скорость, Полёт, Телепорт")
-print("🤖 Вкладка 2: Автоматизация - Авто-прятание, Авто-ферма, Авто-рестарт")
-print("👁 Вкладка 3: Визуалы - ESP, Подсветка тела")
-print("⚙ Вкладка 4: Другое - Анти-обнаружение, Телепорт тела")
+print("✅ Gnom Hub успешно загружен!")
+print("📍 Перетаскивание: за синюю верхнюю панель")
+print("🎮 Вкладки: Персонаж, Автоматизация, Визуалы, Другое")
