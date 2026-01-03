@@ -1,4 +1,4 @@
--- Gnom Hub | Hide the Body - Полностью рабочий скрипт
+-- Gnom Hub | Hide the Body - Исправленный скрипт
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
@@ -74,12 +74,20 @@ local Tabs = {
 -- Создаем контейнеры для каждой вкладки
 local TabContents = {}
 for i = 1, 4 do
-    local content = Instance.new("Frame")
+    local content = Instance.new("ScrollingFrame")
     content.Size = UDim2.new(1, 0, 1, 0)
     content.BackgroundTransparency = 1
     content.Visible = (i == 1)
     content.Name = "TabContent"..i
+    content.ScrollBarThickness = 4
+    content.ScrollingDirection = Enum.ScrollingDirection.Y
+    content.AutomaticCanvasSize = Enum.AutomaticSize.Y
     content.Parent = ContentFrame
+    
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 5)
+    layout.Parent = content
+    
     TabContents[i] = content
 end
 
@@ -113,8 +121,7 @@ end
 -- Функция создания переключателя
 local function CreateToggle(name, parent, callback)
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, -20, 0, 35)
-    frame.Position = UDim2.new(0, 10, 0, #parent:GetChildren() * 40)
+    frame.Size = UDim2.new(1, 0, 0, 35)
     frame.BackgroundColor3 = Color3.fromRGB(30, 40, 90)
     frame.Parent = parent
     
@@ -157,8 +164,7 @@ end
 -- Функция создания кнопки
 local function CreateButton(name, parent, callback)
     local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, -20, 0, 35)
-    button.Position = UDim2.new(0, 10, 0, #parent:GetChildren() * 40)
+    button.Size = UDim2.new(1, 0, 0, 35)
     button.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
     button.Text = name
     button.TextColor3 = Color3.white
@@ -174,13 +180,13 @@ local function CreateButton(name, parent, callback)
 end
 
 -- 🚀 Вкладка 1: Персонаж
-local speedToggle = CreateToggle("Высокая скорость", TabContents[1], function(state)
+CreateToggle("Высокая скорость", TabContents[1], function(state)
     if LocalPlayer.Character then
         LocalPlayer.Character.Humanoid.WalkSpeed = state and 50 or 16
     end
 end)
 
-local flightToggle = CreateToggle("Полёт (X)", TabContents[1], function(state)
+CreateToggle("Полёт (X)", TabContents[1], function(state)
     getgenv().FlightEnabled = state
 end)
 
@@ -190,7 +196,7 @@ CreateButton("📌 Телепорт к укрытию", TabContents[1], function
     end
 end)
 
-local noclipToggle = CreateToggle("NoClip (N)", TabContents[1], function(state)
+CreateToggle("NoClip (N)", TabContents[1], function(state)
     getgenv().NoClipEnabled = state
     if LocalPlayer.Character then
         for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
@@ -202,20 +208,20 @@ local noclipToggle = CreateToggle("NoClip (N)", TabContents[1], function(state)
 end)
 
 -- 🤖 Вкладка 2: Автоматизация
-local autohideToggle = CreateToggle("Авто-прятание тела", TabContents[2], function(state)
+CreateToggle("Авто-прятание тела", TabContents[2], function(state)
     getgenv().AutoHide = state
 end)
 
-local autofarmToggle = CreateToggle("Авто-ферма валюты", TabContents[2], function(state)
+CreateToggle("Авто-ферма валюты", TabContents[2], function(state)
     getgenv().AutoFarm = state
 end)
 
-local autorestartToggle = CreateToggle("Авто-рестарт", TabContents[2], function(state)
+CreateToggle("Авто-рестарт", TabContents[2], function(state)
     getgenv().AutoRestart = state
 end)
 
 -- 👁 Вкладка 3: Визуалы
-local espToggle = CreateToggle("ESP игроков", TabContents[3], function(state)
+CreateToggle("ESP игроков", TabContents[3], function(state)
     if state then
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
@@ -239,7 +245,7 @@ local espToggle = CreateToggle("ESP игроков", TabContents[3], function(st
     end
 end)
 
-local bodylightToggle = CreateToggle("Подсветка тела", TabContents[3], function(state)
+CreateToggle("Подсветка тела", TabContents[3], function(state)
     getgenv().BodyHighlight = state
     if state then
         local body = workspace:FindFirstChild("DeadBody")
