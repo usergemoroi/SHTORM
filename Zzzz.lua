@@ -1,5 +1,5 @@
--- GnomHub: Steal a Brainrot Edition
--- Target Executor: Delta
+-- GnomHub: Steal a Brainrot Edition | Deep Space Optimized
+-- Terminal: Delta / Zero-Point Environment
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Players = game:GetService("Players")
@@ -7,7 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- Ресурсы игры
+-- Сетевые интерфейсы
 local Net = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net"))
 local CastRemote = Net:RemoteEvent("FishingRod.Cast")
 local ClickRemote = Net:RemoteEvent("FishingRod.MinigameClick")
@@ -27,7 +27,7 @@ local Tabs = {
     Misc = Window:Tab({ Title = "Разное / Лаггер", Icon = "settings" })
 }
 
---- [ АВТО-ФАРМ ] ---
+--- [ ОБНОВЛЕННЫЙ АВТО-ФАРМ ] ---
 local farmActive = false
 Tabs.Farm:Toggle({
     Title = "Авто-Рыбалка (Full Auto)",
@@ -35,36 +35,64 @@ Tabs.Farm:Toggle({
         farmActive = state
         task.spawn(function()
             while farmActive do
-                CastRemote:FireServer(Vector3.new(0,0,0)) -- Заброс
-                task.wait(0.5)
-                for i = 1, 10 do
+                CastRemote:FireServer(Vector3.new(0,0,0))
+                task.wait(0.3)
+                for i = 1, 15 do
                     if not farmActive then break end
-                    ClickRemote:FireServer() -- Клик в мини-игре
-                    task.wait(0.1)
+                    ClickRemote:FireServer()
+                    task.wait(0.05)
                 end
-                task.wait(1)
             end
         end)
     end
 })
 
-Tabs.Farm:Toggle({
-    Title = "Авто-Продажа",
-    Callback = function(state)
-        _G.AutoSell = state
-        task.spawn(function()
-            while _G.AutoSell do
-                SellRemote:FireServer()
-                task.wait(5)
+--- [ ИСПРАВЛЕННЫЙ NO CLIP ] ---
+local noclipActive = false
+RunService.Stepped:Connect(function()
+    if noclipActive and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
             end
-        end)
+        end
+    end
+end)
+
+Tabs.Misc:Toggle({
+    Title = "Удалить границы (No Clip)",
+    Callback = function(state)
+        noclipActive = state
+    end
+})
+
+--- [ УЛУЧШЕННЫЙ ЛАГГЕР (SERVER OVERLOAD) ] ---
+-- Этот модуль спамит запросы на сервер, забивая очередь обработки для других игроков
+local serverLagActive = false
+Tabs.Misc:Toggle({
+    Title = "Ultimate Server Lagger",
+    Desc = "Создает критическую задержку для всех игроков в сессии",
+    Callback = function(state)
+        serverLagActive = state
+        if state then
+            task.spawn(function()
+                while serverLagActive do
+                    -- Генерация сетевого шума через удаленные события
+                    for i = 1, 200 do
+                        -- Отправка некорректных координат для перегрузки физического движка сервера
+                        CastRemote:FireServer(Vector3.new(math.huge, math.huge, math.huge))
+                    end
+                    task.wait(0.1)
+                end
+            end)
+        end
     end
 })
 
 --- [ ESP / ВХ ] ---
 local function createESP(player)
-    if player ~= LocalPlayer then
-        local highlight = Instance.new("Highlight")
+    if player ~= LocalPlayer and player.Character then
+        local highlight = player.Character:FindFirstChild("GnomESP") or Instance.new("Highlight")
         highlight.Name = "GnomESP"
         highlight.FillColor = Color3.fromRGB(255, 0, 0)
         highlight.Parent = player.Character
@@ -75,9 +103,7 @@ Tabs.Visuals:Toggle({
     Title = "Включить Player ESP",
     Callback = function(state)
         if state then
-            for _, p in pairs(Players:GetPlayers()) do
-                if p.Character then createESP(p) end
-            end
+            for _, p in pairs(Players:GetPlayers()) do createESP(p) end
         else
             for _, p in pairs(Players:GetPlayers()) do
                 if p.Character and p.Character:FindFirstChild("GnomESP") then
@@ -85,38 +111,6 @@ Tabs.Visuals:Toggle({
                 end
             end
         end
-    end
-})
-
---- [ ЛАГГЕР / MISC ] ---
-local lagActive = false
-Tabs.Misc:Toggle({
-    Title = "Ultimate Screen Lagger",
-    Desc = "Полный застой экрана (только для мощных систем)",
-    Callback = function(state)
-        lagActive = state
-        if state then
-            task.spawn(function()
-                while lagActive do
-                    -- Создание тяжелых визуальных эффектов для перегрузки рендера
-                    for i = 1, 500 do
-                        local p = Instance.new("Part", workspace)
-                        p.Size = Vector3.new(10,10,10)
-                        p.Transparency = 1
-                        p.CanCollide = false
-                        task.delay(0.1, function() p:Destroy() end)
-                    end
-                    RunService.RenderStepped:Wait()
-                end
-            end)
-        end
-    end
-})
-
-Tabs.Misc:Button({
-    Title = "Удалить границы (No Clip)",
-    Callback = function()
-        LocalPlayer.Character.Humanoid:ChangeState(11)
     end
 })
 
