@@ -1,88 +1,71 @@
--- Минималистичный интерфейс для Delta
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("SHTORM HUB", "DarkScene")
+local Window = Library.CreateLib("Brainrot Menu", "Midnight")
+local Tab = Window:NewTab("Main")
+local Section = Tab:NewSection("Функции")
 
--- Настройки
-local Tab = Window:NewTab("Main Functions")
-local Section = Tab:NewSection("WallHack & Combat")
-
-local EspEnabled = false
-local AimEnabled = false
-local SpeedVal = 16
-
--- Функция создания ВХ (Чамсы)
-local function ApplyChams(player)
-    if player.Character and not player.Character:FindFirstChild("ShtormHighlight") then
-        local highlight = Instance.new("Highlight")
-        highlight.Name = "ShtormHighlight"
-        highlight.Parent = player.Character
-        highlight.FillColor = Color3.fromRGB(255, 0, 0) -- Красный цвет
-        highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- Белая обводка
-        highlight.FillTransparency = 0.5
-        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- ВИДНО СКВОЗЬ СТЕНЫ
-    end
-end
-
--- Переключатель ВХ
-Section:NewToggle("WallHack (Chams)", "Подсветка врагов сквозь стены", function(state)
-    EspEnabled = state
+-- 1. УСКОРЕНИЕ (ВКЛ/ВЫКЛ)
+Section:NewToggle("Ускорение бега", "Включает скорость 100", function(state)
     if state then
-        task.spawn(function()
-            while EspEnabled do
-                for _, player in pairs(game.Players:GetPlayers()) do
-                    if player ~= game.Players.LocalPlayer then
-                        ApplyChams(player)
-                    end
-                end
-                task.wait(2) -- Обновление раз в 2 секунды для стабильности
-            end
-        end)
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 100
     else
-        for _, player in pairs(game.Players:GetPlayers()) do
-            if player.Character and player.Character:FindFirstChild("ShtormHighlight") then
-                player.Character.ShtormHighlight:Destroy()
-            end
-        end
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
     end
 end)
 
--- Переключатель Аимбота
-Section:NewToggle("Aimbot (Hard Lock)", "Жесткое наведение на голову", function(state)
-    AimEnabled = state
-end)
-
--- Скорость бега
-Section:NewSlider("WalkSpeed", "Быстрый бег", 100, 16, function(s)
-    SpeedVal = s
-end)
-
--- ЛОГИКА АИМБОТА И СКОРОСТИ (Работает в фоне)
-game:GetService("RunService").RenderStepped:Connect(function()
-    -- Аимбот
-    if AimEnabled then
-        local shortestDistance = 500
-        local closestTarget = nil
-        
-        for _, v in pairs(game.Players:GetPlayers()) do
-            if v ~= game.Players.LocalPlayer and v.Character and v.Character:FindFirstChild("Head") then
-                local pos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(v.Character.Head.Position)
-                if onScreen then
-                    local mag = (Vector2.new(pos.X, pos.Y) - game:GetService("GuiService"):GetScreenResolution()/2).Magnitude
-                    if mag < shortestDistance then
-                        shortestDistance = mag
-                        closestTarget = v.Character.Head
+-- 2. ПРОХОД СКВОЗЬ СТЕНЫ И ЛАЗЕРЫ (ВКЛ/ВЫКЛ)
+Section:NewToggle("Проход сквозь стены (Noclip)", "Стены и лазеры не мешают", function(state)
+    _G.Noclip = state
+    game:GetService("RunService").Stepped:Connect(function()
+        if _G.Noclip then
+            if game.Players.LocalPlayer.Character then
+                for _, part in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
                     end
                 end
             end
         end
-        
-        if closestTarget then
-            workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, closestTarget.Position)
+    end)
+end)
+
+-- 3. ПОДСВЕТКА ИГРОКОВ (ВКЛ/ВЫКЛ)
+Section:NewToggle("Подсветка игроков (ESP)", "Видеть всех", function(state)
+    _G.ESP = state
+    if state then
+        for _, p in pairs(game.Players:GetChildren()) do
+            if p ~= game.Players.LocalPlayer and p.Character then
+                local highlight = Instance.new("Highlight", p.Character)
+                highlight.Name = "ESPHighlight"
+                highlight.FillColor = Color3.fromRGB(255, 0, 0)
+            end
+        end
+    else
+        for _, p in pairs(game.Players:GetChildren()) do
+            if p.Character and p.Character:FindFirstChild("ESPHighlight") then
+                p.Character.ESPHighlight:Destroy()
+            end
         end
     end
-    
-    -- Скорость
-    if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
-        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = SpeedVal
+end)
+
+-- 4. ПОДСВЕТКА ДОРОГОГО БРАИНРОТА
+Section:NewButton("Подсветить дорогой браинрот", "Разово находит лучший предмет", function()
+    -- Ищем предмет с TouchInterest (который можно подобрать)
+    for _, obj in pairs(game.Workspace:GetDescendants()) do
+        if obj:IsA("TouchInterest") then
+            local parent = obj.Parent
+            local high = Instance.new("Highlight", parent)
+            high.FillColor = Color3.fromRGB(0, 255, 0)
+        end
+    end
+end)
+
+-- 5. ЛАГГЕР (ВКЛ/ВЫКЛ)
+Section:NewToggle("Лаггер сервера", "Может лагать сервер", function(state)
+    _G.Lag = state
+    while _G.Lag do
+        task.wait()
+        -- Спам запросом на смену состояния (безобидный, но создает пакеты)
+        game.Players.LocalPlayer.Character.Humanoid:ChangeState(11)
     end
 end)
