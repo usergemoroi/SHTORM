@@ -1,118 +1,186 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
 
-local Window = Rayfield:CreateWindow({
-   Name = "Trench Combat | Delta Edition",
-   LoadingTitle = "Загрузка скрипта...",
-   LoadingSubtitle = "by Gemini AI",
-   ConfigurationSaving = { Enabled = true, Folder = "TrenchCombatConfig" }
+-- Настройка интерфейса SHTORM
+local Window = OrionLib:MakeWindow({
+    Name = "SHTORM HUB | Trench Combat", 
+    HidePremium = false, 
+    SaveConfig = false, 
+    ConfigFolder = "ShtormConfig",
+    IntroEnabled = true,
+    IntroText = "SHTORM LOADED"
 })
 
--- Переменные для функций
-local AimSettings = {
-    Enabled = false,
-    TeamCheck = true,
-    Smoothness = 0.5,
-    Radius = 200
-}
+-- Глобальные переменные
+getgenv().AimbotEnabled = false
+getgenv().TeamCheck = true
+getgenv().AimPart = "Head"
+getgenv().Sensitivity = 0 -- 0 = моментальный лок, выше = плавнее
+getgenv().CircleRadius = 150
+getgenv().ESPEnabled = false
+getgenv().ChamsEnabled = false
+getgenv().SpeedValue = 16
 
-local ESPEnabled = false
-local WalkSpeed = 16
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
 
--- Вкладка Бой (Combat)
-local CombatTab = Window:CreateTab("Бой (Combat)", 4483362458)
+-- === ФУНКЦИИ ===
 
-CombatTab:CreateToggle({
-   Name = "Aimbot + BulletTrack",
-   CurrentValue = false,
-   Callback = function(Value)
-      AimSettings.Enabled = Value
-   end,
-})
+-- Проверка: враг ли это?
+local function IsEnemy(player)
+    if not getgenv().TeamCheck then return true end
+    if player.Team ~= LocalPlayer.Team then return true end
+    return false
+end
 
-CombatTab:CreateSlider({
-   Name = "Радиус захвата (FOV)",
-   Min = 50,
-   Max = 800,
-   Default = 200,
-   Color = Color3.fromRGB(255, 255, 255),
-   Increment = 10,
-   Callback = function(Value)
-      AimSettings.Radius = Value
-   end,
-})
+-- Функция поиска ближайшего врага
+local function GetClosestEnemy()
+    local ClosestPlayer = nil
+    local ShortestDistance = getgenv().CircleRadius
 
--- Вкладка Визуалы (ESP)
-local VisualsTab = Window:CreateTab("Визуалы", 4483345998)
-
-VisualsTab:CreateToggle({
-   Name = "WallHack (ESP Boxes)",
-   CurrentValue = false,
-   Callback = function(Value)
-      ESPEnabled = Value
-      if Value then
-          -- Цикл ESP
-          task.spawn(function()
-              while ESPEnabled do
-                  for _, player in pairs(game.Players:GetPlayers()) do
-                      if player ~= game.Players.LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                          if not player.Character:FindFirstChild("Highlight") then
-                              local highlight = Instance.new("Highlight", player.Character)
-                              highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                              highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                          end
-                      end
-                  end
-                  task.wait(1)
-              end
-          end)
-      else
-          for _, player in pairs(game.Players:GetPlayers()) do
-              if player.Character and player.Character:FindFirstChild("Highlight") then
-                  player.Character.Highlight:Destroy()
-              end
-          end
-      end
-   end,
-})
-
--- Вкладка Игрок
-local PlayerTab = Window:CreateTab("Игрок", 4483362458)
-
-PlayerTab:CreateSlider({
-   Name = "Speed Hack (Скорость)",
-   Min = 16,
-   Max = 100,
-   Default = 16,
-   Increment = 1,
-   Callback = function(Value)
-      game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
-   end,
-})
-
--- Логика Аимбота (Aimbot Logic)
-game:GetService("RunService").RenderStepped:Connect(function()
-    if AimSettings.Enabled then
-        local target = nil
-        local shortestDistance = AimSettings.Radius
-
-        for _, player in pairs(game.Players:GetPlayers()) do
-            if player ~= game.Players.LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-                local pos, onScreen = game.Workspace.CurrentCamera:WorldToViewportPoint(player.Character.HumanoidRootPart.Position)
-                if onScreen then
-                    local distance = (Vector2.new(pos.X, pos.Y) - Vector2.new(game.Players.LocalPlayer:GetMouse().X, game.Players.LocalPlayer:GetMouse().Y)).Magnitude
-                    if distance < shortestDistance then
-                        target = player.Character.HumanoidRootPart
-                        shortestDistance = distance
-                    end
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 and IsEnemy(v) then
+            local pos = Camera:WorldToViewportPoint(v.Character.PrimaryPart.Position)
+            local magnitude = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude -- Используем UserInputService ниже, это упрощение
+            
+            -- Проверка на FOV (поле зрения)
+            local vector, onScreen = Camera:WorldToViewportPoint(v.Character[getgenv().AimPart].Position)
+            if onScreen then
+                local MouseLocation = game:GetService("UserInputService"):GetMouseLocation()
+                local Distance = (Vector2.new(MouseLocation.X, MouseLocation.Y) - Vector2.new(vector.X, vector.Y)).Magnitude
+                
+                if Distance < ShortestDistance then
+                    ShortestDistance = Distance
+                    ClosestPlayer = v
                 end
             end
         end
+    end
+    return ClosestPlayer
+end
 
-        if target then
-            local cam = game.Workspace.CurrentCamera
-            cam.CFrame = CFrame.new(cam.CFrame.Position, target.Position)
+-- Обновление Чамсов (ESP)
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if getgenv().ChamsEnabled then
+            for _, v in pairs(Players:GetPlayers()) do
+                if v ~= LocalPlayer and v.Character then
+                    -- Удаляем старые, если есть
+                    if v.Character:FindFirstChild("ShtormHighlight") then
+                        v.Character.ShtormHighlight:Destroy()
+                    end
+                    
+                    if IsEnemy(v) and v.Character:FindFirstChild("HumanoidRootPart") then
+                        local h = Instance.new("Highlight")
+                        h.Name = "ShtormHighlight"
+                        h.Parent = v.Character
+                        h.Adornee = v.Character
+                        h.FillColor = Color3.fromRGB(255, 0, 0) -- Красный цвет врага
+                        h.OutlineColor = Color3.fromRGB(255, 255, 255)
+                        h.FillTransparency = 0.5
+                        h.OutlineTransparency = 0
+                        h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- ВИДНО СКВОЗЬ СТЕНЫ
+                    end
+                end
+            end
+        else
+            -- Очистка чамсов при выключении
+            for _, v in pairs(Players:GetPlayers()) do
+                if v.Character and v.Character:FindFirstChild("ShtormHighlight") then
+                    v.Character.ShtormHighlight:Destroy()
+                end
+            end
         end
     end
 end)
 
-Rayfield:Notify({Title = "Скрипт загружен!", Content = "Приятной игры в Trench Combat", Duration = 5})
+-- === ВКЛАДКИ ===
+
+local CombatTab = Window:MakeTab({
+	Name = "Combat (Бой)",
+	Icon = "rbxassetid://4483345998",
+	PremiumOnly = false
+})
+
+local VisualsTab = Window:MakeTab({
+	Name = "Visuals (ВХ)",
+	Icon = "rbxassetid://4483345998",
+	PremiumOnly = false
+})
+
+local PlayerTab = Window:MakeTab({
+	Name = "Player (Персонаж)",
+	Icon = "rbxassetid://4483345998",
+	PremiumOnly = false
+})
+
+-- === ЭЛЕМЕНТЫ МЕНЮ ===
+
+-- Aimbot
+CombatTab:AddToggle({
+	Name = "Enable Aimbot",
+	Default = false,
+	Callback = function(Value)
+		getgenv().AimbotEnabled = Value
+	end    
+})
+
+CombatTab:AddToggle({
+	Name = "Team Check (Не стрелять в своих)",
+	Default = true,
+	Callback = function(Value)
+		getgenv().TeamCheck = Value
+	end    
+})
+
+-- Visuals
+VisualsTab:AddToggle({
+	Name = "Chams (Сквозь стены)",
+	Default = false,
+	Callback = function(Value)
+		getgenv().ChamsEnabled = Value
+	end    
+})
+
+-- Speed
+PlayerTab:AddSlider({
+	Name = "WalkSpeed",
+	Min = 16,
+	Max = 100,
+	Default = 16,
+	Color = Color3.fromRGB(255,255,255),
+	Increment = 1,
+	ValueName = "Speed",
+	Callback = function(Value)
+        getgenv().SpeedValue = Value
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = Value
+        end
+	end    
+})
+
+-- Loop для поддержания скорости (если игра сбрасывает)
+task.spawn(function()
+    while task.wait(0.5) do
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            if LocalPlayer.Character.Humanoid.WalkSpeed ~= getgenv().SpeedValue and getgenv().SpeedValue > 16 then
+                LocalPlayer.Character.Humanoid.WalkSpeed = getgenv().SpeedValue
+            end
+        end
+    end
+end)
+
+-- Loop Аимбота
+RunService.RenderStepped:Connect(function()
+    if getgenv().AimbotEnabled then
+        local Target = GetClosestEnemy()
+        if Target and Target.Character and Target.Character:FindFirstChild(getgenv().AimPart) then
+            -- Плавное или жесткое наведение камеры
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, Target.Character[getgenv().AimPart].Position)
+        end
+    end
+end)
+
+OrionLib:Init()
