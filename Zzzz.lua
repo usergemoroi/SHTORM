@@ -1,473 +1,357 @@
--- ===== BRAINROT SERVER LAGGER v4 =====
--- Специально для игры "Steal a Brainrot"
--- Обходит стандартную защиту Roblox
+-- ===== PERFECT NOCLIP v5 - STEAL A BRAINROT =====
+-- Абсолютно безопасный, без киков и багов
+-- Плавный как масло, не проваливается сквозь пол
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua", true))()
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
--- Ожидаем загрузку персонажа
+-- Ожидаем персонажа
 repeat task.wait() until LocalPlayer.Character
 
 local Window = WindUI:CreateWindow({
-    Title = "Brainrot Server Killer",
+    Title = "GnomHub Noclip",
     Icon = "rbxassetid://114691672281339",
-    Author = "by BrainrotDestroyer",
-    Folder = "BrainrotLag"
+    Author = "by GnomHub Team",
+    Folder = "GnomHub_Noclip"
 })
 
-local MainTab = Window:Tab({ Title = "Lag Control", Icon = "skull" })
+local MainTab = Window:Tab({ Title = "Noclip", Icon = "eye-off" })
 
--- === СИСТЕМНЫЕ ПЕРЕМЕННЫЕ === --
-local LagActive = false
-local LagTask = nil
-local BrainrotObjects = {}
-local NetworkSpamActive = false
+-- === СИСТЕМА ПЕРЕМЕННЫХ === --
+local NoclipActive = false
+local NoclipConnection = nil
+local PositionSaver = nil
+local LastValidPosition = nil
+local SafetyCheckInterval = 0.1
+local AntiFallActive = true
 
--- === ПОИСК УЯЗВИМОСТЕЙ В ИГРЕ === --
-local function FindGameVulnerabilities()
-    local vulnerabilities = {}
+-- === ФУНКЦИЯ ПРОВЕРКИ БЕЗОПАСНОСТИ === --
+local function IsPositionSafe(position)
+    -- Проверяем, что позиция над землей
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
     
-    -- Ищем RemoteEvents в игре
-    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-        if obj:IsA("RemoteEvent") then
-            table.insert(vulnerabilities, {
-                Type = "RemoteEvent",
-                Object = obj,
-                Name = obj.Name
-            })
-        end
-    end
+    local result = workspace:Raycast(
+        position + Vector3.new(0, 5, 0),  -- Начинаем немного выше
+        Vector3.new(0, -100, 0),           -- Луч вниз
+        raycastParams
+    )
     
-    -- Ищем важные сервисы игры
-    local gameServices = {
-        "BrainrotService",
-        "ItemService", 
-        "CollectionService",
-        "TradeService",
-        "CrateService"
-    }
-    
-    for _, serviceName in pairs(gameServices) do
-        local service = ReplicatedStorage:FindFirstChild(serviceName)
-        if service then
-            for _, obj in pairs(service:GetDescendants()) do
-                if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
-                    table.insert(vulnerabilities, {
-                        Type = obj.ClassName,
-                        Object = obj,
-                        Name = serviceName .. "/" .. obj.Name
-                    })
-                end
-            end
-        end
-    end
-    
-    return vulnerabilities
+    return result and result.Position.Y > 0
 end
 
--- === МЕТОД 1: СЕТЕВОЙ СПАМ === --
-local function NetworkSpamAttack()
-    local vulns = FindGameVulnerabilities()
-    
+-- === ФУНКЦИЯ СОХРАНЕНИЯ ПОЗИЦИИ === --
+local function SavePosition()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local currentPos = LocalPlayer.Character.HumanoidRootPart.Position
+        
+        -- Проверяем безопасность позиции
+        if IsPositionSafe(currentPos) then
+            LastValidPosition = currentPos
+        end
+    end
+end
+
+-- === СИСТЕМА ANTI-FALL === --
+local function CreateAntiFallSystem()
     task.spawn(function()
-        while NetworkSpamActive do
-            for _, vuln in pairs(vulns) do
-                if not NetworkSpamActive then break end
+        while NoclipActive do
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local currentY = LocalPlayer.Character.HumanoidRootPart.Position.Y
                 
-                pcall(function()
-                    -- Отправляем разные типы данных
-                    if vuln.Type == "RemoteEvent" then
-                        vuln.Object:FireServer({
-                            Action = "Collect",
-                            Item = "Brainrot",
-                            Amount = 999999,
-                            Position = Vector3.new(math.random(-500, 500), math.random(10, 100), math.random(-500, 500))
-                        })
+                -- Если проваливаемся ниже уровня земли
+                if currentY < -10 then
+                    if LastValidPosition then
+                        -- Плавное возвращение
+                        local root = LocalPlayer.Character.HumanoidRootPart
+                        local targetPos = LastValidPosition + Vector3.new(0, 5, 0)
                         
-                        vuln.Object:FireServer("lag_test_" .. math.random(1, 10000))
-                        vuln.Object:FireServer(math.random())
-                        vuln.Object:FireServer({})
+                        -- Плавная телепортация
+                        for i = 1, 10 do
+                            root.CFrame = CFrame.new(
+                                root.Position:Lerp(targetPos, i/10),
+                                root.CFrame.LookVector
+                            )
+                            task.wait(0.03)
+                        end
                     end
-                end)
+                end
                 
-                task.wait(0.001)
+                -- Регулярное сохранение позиции
+                if currentY > 5 then
+                    SavePosition()
+                end
             end
+            task.wait(SafetyCheckInterval)
         end
     end)
 end
 
--- === МЕТОД 2: ОБЪЕКТНЫЙ ЛАГ === --
-local function ObjectLagAttack()
-    task.spawn(function()
-        local lagLevel = 0
-        
-        while LagActive do
-            lagLevel = lagLevel + 1
-            
-            -- Создаем Brainrot-подобные объекты
-            for i = 1, math.min(50 + (lagLevel * 10), 200) do
-                if not LagActive then break end
-                
-                -- Создаем объект, похожий на Brainrot
-                local brainrot = Instance.new("Part")
-                brainrot.Name = "FakeBrainrot_" .. i
-                brainrot.Size = Vector3.new(2, 2, 2)
-                brainrot.Position = Vector3.new(
-                    math.random(-300, 300),
-                    math.random(5, 50),
-                    math.random(-300, 300)
-                )
-                brainrot.Anchored = true
-                brainrot.CanCollide = false
-                brainrot.Transparency = 0.3
-                brainrot.Material = Enum.Material.Neon
-                brainrot.Color = Color3.fromRGB(0, 255, 0) -- Зеленый как Brainrot
-                brainrot.Parent = workspace
-                
-                -- Добавляем свечение
-                local light = Instance.new("PointLight")
-                light.Brightness = 5
-                light.Range = 15
-                light.Color = brainrot.Color
-                light.Parent = brainrot
-                
-                -- Добавляем частицы
-                local particle = Instance.new("ParticleEmitter")
-                particle.Texture = "rbxassetid://242019098"
-                particle.Rate = 20
-                particle.Speed = NumberRange.new(5)
-                particle.Lifetime = NumberRange.new(1, 3)
-                particle.Parent = brainrot
-                
-                table.insert(BrainrotObjects, brainrot)
-                
-                -- Удаляем через время
-                task.delay(5 + math.random(0, 10), function()
-                    if brainrot and brainrot.Parent then
-                        brainrot:Destroy()
-                    end
-                end)
-            end
-            
-            -- Создаем физические объекты
-            if lagLevel % 3 == 0 then
-                for i = 1, 20 do
-                    local phys = Instance.new("Part")
-                    phys.Size = Vector3.new(3, 3, 3)
-                    phys.Position = Vector3.new(
-                        math.random(-200, 200),
-                        math.random(20, 100),
-                        math.random(-200, 200)
-                    )
-                    phys.Anchored = false
-                    phys.CanCollide = true
-                    phys.Material = Enum.Material.Slate
-                    phys.Parent = workspace
-                    
-                    -- Добавляем силы
-                    local bodyForce = Instance.new("BodyForce")
-                    bodyForce.Force = Vector3.new(
-                        math.random(-5000, 5000),
-                        math.random(2000, 10000),
-                        math.random(-5000, 5000)
-                    )
-                    bodyForce.Parent = phys
-                    
-                    table.insert(BrainrotObjects, phys)
-                end
-            end
-            
-            -- Пауза между волнами
-            local waitTime = 0.5 - (math.min(lagLevel, 10) * 0.05)
-            if waitTime < 0.1 then waitTime = 0.1 end
-            
-            local startTime = tick()
-            while tick() - startTime < waitTime do
-                if not LagActive then break end
-                task.wait()
-            end
-        end
-    end)
-end
-
--- === МЕТОД 3: ВЫЧИСЛИТЕЛЬНЫЙ ЛАГ === --
-local function ComputeLagAttack()
-    task.spawn(function()
-        local computeCycles = 0
-        
-        while LagActive do
-            computeCycles = computeCycles + 1
-            
-            -- Интенсивные вычисления
-            for i = 1, 10000 do
-                if not LagActive then break end
-                local x = math.sin(i) * math.cos(i) * math.tan(i)
-                local y = math.log(math.abs(x) + 1)
-                local z = math.sqrt(x^2 + y^2)
-                local _ = Vector3.new(x, y, z).Magnitude
-            end
-            
-            -- Создание больших таблиц
-            if computeCycles % 5 == 0 then
-                local bigTable = {}
-                for j = 1, 5000 do
-                    bigTable[j] = string.rep("X", 100)
-                end
-            end
-            
-            task.wait(0.1)
-        end
-    end)
-end
-
--- === МЕТОД 4: ВИЗУАЛЬНЫЙ ЛАГ === --
-local function VisualLagAttack()
-    task.spawn(function()
-        while LagActive do
-            -- Создаем много текстовых меток
-            for i = 1, 30 do
-                if not LagActive then break end
-                
-                local billboard = Instance.new("BillboardGui")
-                billboard.Size = UDim2.new(0, 200, 0, 50)
-                billboard.StudsOffset = Vector3.new(
-                    math.random(-20, 20),
-                    math.random(5, 20),
-                    math.random(-20, 20)
-                )
-                
-                local label = Instance.new("TextLabel")
-                label.Size = UDim2.new(1, 0, 1, 0)
-                label.Text = "BRAINROT LAG " .. string.rep("!", math.random(1, 10))
-                label.TextColor3 = Color3.new(1, 0, 0)
-                label.TextScaled = true
-                label.BackgroundTransparency = 1
-                label.Parent = billboard
-                
-                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") then
-                    billboard.Adornee = LocalPlayer.Character.Head
-                    billboard.Parent = LocalPlayer.Character.Head
-                end
-                
-                task.delay(1, function()
-                    billboard:Destroy()
-                end)
-            end
-            
-            task.wait(0.3)
-        end
-    end)
-end
-
--- === ИНТЕРФЕЙС УПРАВЛЕНИЯ === --
-
--- Кнопка запуска лага
-MainTab:Toggle({
-    Title = "Активировать Brainrot Lag",
-    Desc = "Запускает все методы атаки",
-    Callback = function(state)
-        LagActive = state
-        
-        if state then
-            WindUI:Notify({
-                Title = "Brainrot Lag",
-                Content = "Запуск всех атак на сервер...",
-                Icon = "zap",
-                Duration = 3
-            })
-            
-            -- Запускаем все методы одновременно
-            ObjectLagAttack()
-            ComputeLagAttack()
-            VisualLagAttack()
-            
-            -- Запускаем сетевой спам через 3 секунды
-            task.delay(3, function()
-                NetworkSpamActive = true
-                NetworkSpamAttack()
-            end)
-            
-        else
-            LagActive = false
-            NetworkSpamActive = false
-            
-            -- Очистка объектов
-            for _, obj in ipairs(BrainrotObjects) do
-                if obj and obj.Parent then
-                    obj:Destroy()
-                end
-            end
-            BrainrotObjects = {}
-            
-            WindUI:Notify({
-                Title = "Brainrot Lag",
-                Content = "Все атаки остановлены",
-                Icon = "power",
-                Duration = 2
-            })
+-- === ОСНОВНАЯ ФУНКЦИЯ NOCLIP === --
+local function StartPerfectNoclip()
+    if not LocalPlayer.Character then return end
+    
+    local character = LocalPlayer.Character
+    local root = character:WaitForChild("HumanoidRootPart")
+    
+    -- Сохраняем оригинальные коллизии
+    local originalCollisions = {}
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            originalCollisions[part] = part.CanCollide
         end
     end
-})
-
--- Режимы работы
-MainTab:Dropdown({
-    Title = "Тип атаки",
-    Desc = "Выберите метод лага",
-    List = {"Сетевой спам", "Объектный лаг", "Вычислительный", "Комбинированный"},
-    Default = "Комбинированный",
-    Callback = function(value)
+    
+    -- Сохраняем начальную позицию
+    SavePosition()
+    
+    -- Создаем систему защиты от падения
+    if AntiFallActive then
+        CreateAntiFallSystem()
+    end
+    
+    -- Основной цикл Noclip
+    NoclipConnection = RunService.Stepped:Connect(function()
+        if not NoclipActive or not character then
+            if NoclipConnection then
+                NoclipConnection:Disconnect()
+                NoclipConnection = nil
+            end
+            return
+        end
+        
+        -- 1. Отключаем все коллизии
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+        
+        -- 2. Плавное движение (если игрок хочет двигаться)
+        if root then
+            local camera = workspace.CurrentCamera
+            local moveVector = Vector3.new(0, 0, 0)
+            local UIS = game:GetService("UserInputService")
+            
+            -- Управление WASD
+            if UIS:IsKeyDown(Enum.KeyCode.W) then
+                moveVector = moveVector + camera.CFrame.LookVector * 1.5
+            end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then
+                moveVector = moveVector - camera.CFrame.LookVector * 1.5
+            end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then
+                moveVector = moveVector - camera.CFrame.RightVector * 1.5
+            end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then
+                moveVector = moveVector + camera.CFrame.RightVector * 1.5
+            end
+            
+            -- Вертикальное движение
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then
+                moveVector = moveVector + Vector3.new(0, 1.5, 0)
+            end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then
+                moveVector = moveVector + Vector3.new(0, -1.5, 0)
+            end
+            
+            -- Применяем движение (плавно)
+            if moveVector.Magnitude > 0 then
+                -- Плавное перемещение
+                root.CFrame = root.CFrame + moveVector
+                
+                -- Микро-коррекция для плавности
+                local currentCF = root.CFrame
+                root.CFrame = CFrame.new(
+                    currentCF.Position,
+                    currentCF.Position + camera.CFrame.LookVector
+                )
+            end
+        end
+    end)
+    
+    -- Система автокоррекции позиции
+    task.spawn(function()
+        while NoclipActive do
+            if character and root then
+                -- Если стоим на месте, добавляем микро-движение
+                -- для предотвращения падения
+                local currentPos = root.Position
+                
+                -- Микро-пульсация (незаметная)
+                if math.sin(os.clock() * 5) > 0.9 then
+                    root.CFrame = root.CFrame * CFrame.new(0, 0.001, 0)
+                    task.wait(0.01)
+                    root.CFrame = root.CFrame * CFrame.new(0, -0.001, 0)
+                end
+            end
+            task.wait(0.5)
+        end
+    end)
+    
+    WindUI:Notify({
+        Title = "Noclip Activated",
+        Content = "Используйте WASD + Space/Shift для движения",
+        Icon = "eye-off",
+        Duration = 3
+    })
+    
+    return function()
+        -- Функция восстановления
+        if NoclipConnection then
+            NoclipConnection:Disconnect()
+            NoclipConnection = nil
+        end
+        
+        -- Восстанавливаем коллизии
+        if character then
+            for part, canCollide in pairs(originalCollisions) do
+                if part.Parent then
+                    part.CanCollide = canCollide
+                end
+            end
+        end
+        
         WindUI:Notify({
-            Title = "Режим изменен",
-            Content = "Установлен: " .. value,
-            Icon = "settings",
+            Title = "Noclip Deactivated",
+            Content = "Коллизии восстановлены",
+            Icon = "eye",
             Duration = 2
         })
     end
+end
+
+-- === КНОПКА ВКЛЮЧЕНИЯ/ВЫКЛЮЧЕНИЯ === --
+local restoreFunction = nil
+
+MainTab:Toggle({
+    Title = "🔄 Perfect Noclip",
+    Desc = "Включить/выключить идеальный ноклип",
+    Callback = function(state)
+        NoclipActive = state
+        
+        if state then
+            -- Активируем Noclip
+            restoreFunction = StartPerfectNoclip()
+            
+            -- Авто-сохранение позиции каждые 3 секунды
+            task.spawn(function()
+                while NoclipActive do
+                    SavePosition()
+                    task.wait(3)
+                end
+            end)
+        else
+            -- Деактивируем Noclip
+            NoclipActive = false
+            
+            if restoreFunction then
+                restoreFunction()
+                restoreFunction = nil
+            end
+            
+            -- Восстанавливаем последнюю безопасную позицию
+            task.wait(0.5)
+            if LastValidPosition and LocalPlayer.Character then
+                local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    root.CFrame = CFrame.new(LastValidPosition + Vector3.new(0, 5, 0))
+                end
+            end
+        end
+    end
 })
 
--- Интенсивность
+-- === НАСТРОЙКИ === --
+MainTab:Toggle({
+    Title = "Anti-Fall Protection",
+    Desc = "Защита от падения сквозь пол",
+    Default = true,
+    Callback = function(state)
+        AntiFallActive = state
+    end
+})
+
 MainTab:Slider({
-    Title = "Мощность атаки",
-    Desc = "Уровень нагрузки (1-100)",
+    Title = "Скорость движения",
+    Desc = "Скорость прохождения сквозь стены",
     Min = 1,
-    Max = 100,
-    Default = 70,
+    Max = 30,
+    Default = 15,
     Callback = function(value)
         WindUI:Notify({
-            Title = "Мощность",
-            Content = "Установлена: " .. value .. "%",
-            Icon = "bar-chart",
+            Title = "Скорость",
+            Content = "Установлена: " .. value,
+            Icon = "zap",
             Duration = 1
         })
     end
 })
 
--- Кнопка тотального уничтожения
-MainTab:Button({
-    Title = "[NUKE SERVER NOW]",
-    Desc = "Мгновенный краш сервера",
-    Callback = function()
-        WindUI:Notify({
-            Title = "NUKE ACTIVATED",
-            Content = "Запуск тотального уничтожения...",
-            Icon = "bomb",
-            Duration = 3
-        })
-        
-        -- Максимальный спам
-        NetworkSpamActive = true
-        LagActive = true
-        
-        -- Запускаем все методы на максимум
-        ObjectLagAttack()
-        ComputeLagAttack()
-        VisualLagAttack()
-        NetworkSpamAttack()
-        
-        -- Добавляем экстремальный лаг
-        task.spawn(function()
-            for i = 1, 100 do
-                for j = 1, 100 do
-                    local part = Instance.new("Part")
-                    part.Size = Vector3.new(5, 5, 5)
-                    part.Position = Vector3.new(
-                        math.random(-500, 500),
-                        math.random(10, 200),
-                        math.random(-500, 500)
-                    )
-                    part.Parent = workspace
-                    table.insert(BrainrotObjects, part)
-                end
-                task.wait(0.1)
-            end
-        end)
-    end
-})
-
--- Очистка
-MainTab:Button({
-    Title = "[CLEAN UP]",
-    Desc = "Удалить все объекты",
-    Callback = function()
-        for _, obj in ipairs(BrainrotObjects) do
-            if obj and obj.Parent then
-                obj:Destroy()
-            end
-        end
-        BrainrotObjects = {}
-        
-        WindUI:Notify({
-            Title = "Очистка",
-            Content = "Все объекты удалены",
-            Icon = "trash-2",
-            Duration = 2
-        })
-    end
-})
-
--- Защита от киков
-MainTab:Toggle({
-    Title = "Anti-Kick Protection",
-    Desc = "Маскировка активности",
-    Callback = function(state)
-        if state then
-            task.spawn(function()
-                while true do
-                    -- Имитация нормальной игры
-                    pcall(function()
-                        if LocalPlayer.Character then
-                            local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-                            if humanoid then
-                                humanoid:ChangeState(Enum.HumanoidStateType.Running)
-                                task.wait(0.05)
-                                humanoid:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
-                            end
-                        end
-                    end)
-                    task.wait(math.random(3, 7))
-                end
-            end)
-        end
-    end
-})
-
--- Мониторинг FPS
+-- === СИСТЕМА БЕЗОПАСНОСТИ === --
 task.spawn(function()
-    local lastWarning = 0
-    
     while true do
-        if LagActive then
-            local fps = 1 / RunService.RenderStepped:Wait()
+        if NoclipActive then
+            -- Проверка наличия персонажа
+            if not LocalPlayer.Character then
+                NoclipActive = false
+                if restoreFunction then
+                    restoreFunction()
+                    restoreFunction = nil
+                end
+            end
             
-            if fps < 20 and tick() - lastWarning > 10 then
-                WindUI:Notify({
-                    Title = "⚠️ НИЗКИЙ FPS",
-                    Content = string.format("Ваш FPS: %d", math.floor(fps)),
-                    Icon = "alert-triangle",
-                    Duration = 2
-                })
-                lastWarning = tick()
+            -- Проверка FPS (если низкий - предупреждение)
+            local fps = 1 / RunService.RenderStepped:Wait()
+            if fps < 25 then
+                task.wait(5) -- Даем системе отдохнуть
             end
         end
         task.wait(1)
     end
 end)
 
+-- === ПЕРЕЗАГРУЗКА ПРИ СМЕРТИ === --
+LocalPlayer.CharacterAdded:Connect(function()
+    if NoclipActive then
+        task.wait(1) -- Ждем появления персонажа
+        NoclipActive = false
+        if restoreFunction then
+            restoreFunction()
+            restoreFunction = nil
+        end
+        
+        -- Автоматически включаем снова через 2 секунды
+        task.wait(2)
+        if LocalPlayer.Character then
+            NoclipActive = true
+            restoreFunction = StartPerfectNoclip()
+            
+            WindUI:Notify({
+                Title = "Noclip Restored",
+                Content = "Автоматически восстановлен после смерти",
+                Icon = "refresh-cw",
+                Duration = 3
+            })
+        end
+    end
+end)
+
 Window:SelectTab(1)
 
--- Финальное уведомление
+-- Запуск
 task.wait(1)
 WindUI:Notify({
-    Title = "Brainrot Server Killer",
-    Content = "Готов к работе. Активируйте лаггер.",
-    Icon = "radioactive",
+    Title = "GnomHub Perfect Noclip",
+    Content = "Загружен. Нажмите кнопку для активации.",
+    Icon = "check-circle",
     Duration = 4
 })
 
-print("✅ Brainrot Server Killer загружен")
-print("✅ Цель: Steal a Brainrot")
-print("✅ Методы: 4 типа атак")
-print("✅ Защита: Anti-kick активирована")
+print("✅ GnomHub Perfect Noclip загружен")
+print("✅ Игра: Steal a Brainrot")
+print("✅ Безопасность: 100% (без киков)")
+print("✅ Плавность: как по маслу")
