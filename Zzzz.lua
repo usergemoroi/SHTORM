@@ -1,173 +1,171 @@
---[[ 
-    GNOMHUB TITAN OVERRIDE 
-    CORE: ZERO-POINT ISOLATION 
-    STATUS: BYPASS ACTIVE 
-]]
-
--- [ ИНИЦИАЛИЗАЦИЯ ЯДРА ] --
-local GnomFramework = {
-    Enabled = true,
-    Debug = false,
-    Version = "Titan-X",
+-- [[ СИСТЕМНОЕ ЯДРО LEVIATHAN ]] --
+local GnomHub = {
     Config = {
-        WalkSpeed = 16, JumpPower = 50, Noclip = false, 
-        ServerLag = false, LagIntensity = 10000,
-        AutoFarm = false, ESP = false, AntiKick = true,
-        AutoSell = false, Fly = false
+        WalkSpeed = 16,
+        JumpPower = 50,
+        LagActive = false,
+        LagIntensity = 5000,
+        FarmActive = false,
+        EspActive = false,
+        AutoSell = false
+    },
+    Data = {
+        Net = nil,
+        Remotes = {}
     }
 }
 
--- Глобальные сервисы
-local Services = setmetatable({}, {__index = function(t, k) return game:GetService(k) end})
-local RunService, Players, ReplicatedStorage = Services.RunService, Services.Players, Services.ReplicatedStorage
+-- Кэширование сервисов
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- [ ОБХОД ЗАЩИТЫ (ANTI-KICK & METATABLE HOOKS) ] --
-local function InitiateBypass()
-    local mt = getrawmetatable(game)
-    local oldNamecall = mt.__namecall
-    local oldIndex = mt.__index
-    setreadonly(mt, false)
+-- Инициализация сети
+pcall(function()
+    GnomHub.Data.Net = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net"))
+    GnomHub.Data.Remotes.Sell = GnomHub.Data.Net:RemoteEvent("PlotService/Sell")
+    GnomHub.Data.Remotes.Cast = GnomHub.Data.Net:RemoteEvent("FishingRod.Cast")
+    GnomHub.Data.Remotes.Click = GnomHub.Data.Net:RemoteEvent("FishingRod.MinigameClick")
+end)
 
-    mt.__namecall = newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        if method == "Kick" or method == "kick" then return nil end
-        if method == "ReportAbuse" then return nil end
-        return oldNamecall(self, ...)
-    end)
-    
-    setreadonly(mt, true)
-end
-InitiateBypass()
-
--- [ ЗАГРУЗКА ИНТЕРФЕЙСА ] --
+-- [ ИНТЕРФЕЙС WINDUI ] --
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "GNOMHUB | ZERO-POINT OVERRIDE",
+    Title = "GNOMHUB LEVIATHAN-X",
     Icon = "rbxassetid://114691672281339",
-    Author = "GnomHub Deep Space",
-    Folder = "GnomHub_Override_Config"
+    Author = "GnomHub Core",
+    Folder = "LeviathanConfig"
 })
 
 local Tabs = {
-    Main = Window:Tab({ Title = "Авто-Фарм", Icon = "zap" }),
-    Move = Window:Tab({ Title = "Движение", Icon = "move" }),
-    Server = Window:Tab({ Title = "Взлом Сервера", Icon = "skull" }),
-    Visuals = Window:Tab({ Title = "Визуалы / ESP", Icon = "eye" }),
-    Configs = Window:Tab({ Title = "Настройки", Icon = "settings" })
+    Farm = Window:Tab({ Title = "Ферма", Icon = "zap" }),
+    Stats = Window:Tab({ Title = "Игрок", Icon = "user" }),
+    Server = Window:Tab({ Title = "Деструкция", Icon = "skull" }),
+    Visuals = Window:Tab({ Title = "ВХ", Icon = "eye" })
 }
 
--- [ МОДУЛЬ: NOCLIP & PHYSICAL BYPASS ] --
-local function HandlePhysics()
-    RunService.Stepped:Connect(function()
-        if GnomFramework.Config.Noclip and LocalPlayer.Character then
-            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false -- Принудительное отключение в каждом кадре
-                end
-            end
-        end
-        
-        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if hum then
-            hum.WalkSpeed = GnomFramework.Config.WalkSpeed
-            hum.JumpPower = GnomFramework.Config.JumpPower
-        end
-    end)
-end
-task.spawn(HandlePhysics)
+-- [[ МОДУЛЬ: ИСПРАВЛЕННЫЕ ПОЛЗУНКИ ]] --
+Tabs.Stats:Slider({
+    Title = "Скорость движения",
+    Min = 16, Max = 500, Default = 16,
+    Callback = function(value)
+        GnomHub.Config.WalkSpeed = value
+    end
+})
 
--- [ МОДУЛЬ: СЕРВЕРНЫЙ ЛАГГЕР (NETWORK OVERFLOW) ] --
-local function StartLag()
-    task.spawn(function()
-        local Net = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net"))
-        local Remote = Net:RemoteEvent("PlotService/Sell")
-        
-        while true do
-            if GnomFramework.Config.ServerLag then
-                -- Отправка критического объема пакетов без создания объектов
-                for i = 1, GnomFramework.Config.LagIntensity do
-                    if not GnomFramework.Config.ServerLag then break end
-                    Remote:FireServer()
-                end
-            end
-            task.wait(0.01)
-        end
-    end)
-end
-StartLag()
+Tabs.Stats:Slider({
+    Title = "Сила прыжка",
+    Min = 50, Max = 1000, Default = 50,
+    Callback = function(value)
+        GnomHub.Config.JumpPower = value
+    end
+})
 
--- [ МОДУЛЬ: ПРАВИЛЬНЫЙ АВТО-ФАРМ (БЕЗ БАГОВ) ] --
-local function StartFarm()
-    task.spawn(function()
-        local Net = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net"))
-        local Cast = Net:RemoteEvent("FishingRod.Cast")
-        local Click = Net:RemoteEvent("FishingRod.MinigameClick")
-        
-        while true do
-            if GnomFramework.Config.AutoFarm then
-                pcall(function()
-                    local root = LocalPlayer.Character.HumanoidRootPart
-                    local castPos = root.Position + (root.CFrame.LookVector * 30)
-                    
-                    Cast:FireServer(castPos)
-                    task.wait(0.8)
-                    
-                    for i = 1, 40 do
-                        if not GnomFramework.Config.AutoFarm then break end
-                        Click:FireServer()
-                        task.wait(0.02)
+-- Применение характеристик без багов
+RunService.Heartbeat:Connect(function()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = GnomHub.Config.WalkSpeed
+        LocalPlayer.Character.Humanoid.JumpPower = GnomHub.Config.JumpPower
+    end
+end)
+
+-- [[ МОДУЛЬ: СЕРВЕРНЫЙ ЛАГГЕР 2.0 (БЕЗ ТЕПОРТОВ) ]] --
+-- Мы используем распределенный спам, чтобы сервер не считал это твоим вылетом
+Tabs.Server:Toggle({
+    Title = "NETWORK FLOOD (LAGGER)",
+    Desc = "Лагает сервер, а не ты",
+    Callback = function(state)
+        GnomHub.Config.LagActive = state
+        if state then
+            task.spawn(function()
+                while GnomHub.Config.LagActive do
+                    for i = 1, GnomHub.Config.LagIntensity do
+                        if not GnomHub.Config.LagActive then break end
+                        -- Посылаем пустые пакеты продажи
+                        GnomHub.Data.Remotes.Sell:FireServer()
                     end
-                end)
-            end
-            task.wait(1.5)
-        end
-    end)
-end
-StartFarm()
-
--- [ МОДУЛЬ: PLAYER ESP (ВХ) ] --
-local function UpdateESP()
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character then
-            local highlight = p.Character:FindFirstChild("GnomHighlight")
-            if GnomFramework.Config.ESP then
-                if not highlight then
-                    highlight = Instance.new("Highlight")
-                    highlight.Name = "GnomHighlight"
-                    highlight.Parent = p.Character
-                    highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    -- Важный момент: ждем 1 физический такт, чтобы клиент не вис
+                    RunService.Stepped:Wait()
                 end
-            else
-                if highlight then highlight:Destroy() end
-            end
+            end)
         end
+    end
+})
+
+Tabs.Server:Slider({
+    Title = "Мощность потока",
+    Min = 100, Max = 50000, Default = 5000,
+    Callback = function(value)
+        GnomHub.Config.LagIntensity = value
+    end
+})
+
+-- [[ МОДУЛЬ: РАБОЧИЙ АВТО-ФАРМ ]] --
+Tabs.Farm:Toggle({
+    Title = "Extreme Auto-Farm",
+    Callback = function(state)
+        GnomHub.Config.FarmActive = state
+        if state then
+            task.spawn(function()
+                while GnomHub.Config.FarmActive do
+                    pcall(function()
+                        local char = LocalPlayer.Character
+                        local root = char.HumanoidRootPart
+                        -- Заброс в рандомную валидную точку
+                        local castPos = root.Position + (root.CFrame.LookVector * 25) + Vector3.new(math.random(-5,5), 0, math.random(-5,5))
+                        GnomHub.Data.Remotes.Cast:FireServer(castPos)
+                        
+                        task.wait(0.5)
+                        for i = 1, 30 do
+                            if not GnomHub.Config.FarmActive then break end
+                            GnomHub.Data.Remotes.Click:FireServer()
+                            task.wait(0.05)
+                        end
+                        GnomHub.Data.Remotes.Sell:FireServer()
+                    end)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+-- [[ МОДУЛЬ: ESP (ВХ) ]] --
+local function createESP(p)
+    if p.Character then
+        local high = Instance.new("Highlight")
+        high.Name = "GnomESP"
+        high.FillColor = Color3.fromRGB(255, 0, 0)
+        high.OutlineColor = Color3.fromRGB(255, 255, 255)
+        high.Parent = p.Character
     end
 end
 
--- [ НАПОЛНЕНИЕ ТАБОВ ] --
+Tabs.Visuals:Toggle({
+    Title = "Player ESP",
+    Callback = function(state)
+        GnomHub.Config.EspActive = state
+        if state then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer then createESP(p) end
+            end
+        else
+            for _, p in pairs(Players:GetPlayers()) do
+                if p.Character and p.Character:FindFirstChild("GnomESP") then
+                    p.Character.GnomESP:Destroy()
+                end
+            end
+        end
+    end)
+})
 
--- ФАРМ
-Tabs.Main:Toggle({ Title = "Включить Авто-Рыбалку", Callback = function(s) GnomFramework.Config.AutoFarm = s end })
-Tabs.Main:Button({ Title = "Продать всё", Callback = function() 
-    local Net = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net"))
-    Net:RemoteEvent("PlotService/Sell"):FireServer()
-end})
-
--- ДВИЖЕНИЕ
-Tabs.Move:Toggle({ Title = "Molecular Noclip (Проход сквозь стены)", Callback = function(s) GnomFramework.Config.Noclip = s end })
-Tabs.Move:Slider({ Title = "Скорость", Min = 16, Max = 500, Default = 16, Callback = function(v) GnomFramework.Config.WalkSpeed = v end })
-Tabs.Move:Slider({ Title = "Прыжок", Min = 50, Max = 1000, Default = 50, Callback = function(v) GnomFramework.Config.JumpPower = v end })
-
--- СЕРВЕР
-Tabs.Server:Toggle({ Title = "АКТИВИРОВАТЬ ЛАГГЕР", Callback = function(s) GnomFramework.Config.ServerLag = s end })
-Tabs.Server:Slider({ Title = "Мощность лага", Min = 1000, Max = 100000, Default = 10000, Callback = function(v) GnomFramework.Config.LagIntensity = v end })
-
--- ВИЗУАЛЫ
-Tabs.Visuals:Toggle({ Title = "Player ESP (ВХ)", Callback = function(s) 
-    GnomFramework.Config.ESP = s 
-    RunService.Heartbeat:Connect(UpdateESP)
-end })
+-- Фиксация ESP при заходе новых игроков
+Players.PlayerAdded:Connect(function(p)
+    if GnomHub.Config.EspActive then
+        p.CharacterAdded:Wait()
+        createESP(p)
+    end
+end)
 
 Window:SelectTab(1)
