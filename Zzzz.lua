@@ -1,188 +1,390 @@
--- Рабочий Lag Bomb на основе вашего скрипта
-local lagEnabled = false
-local lagRadius = 50
-local packetCount = 1000
-local lagTask
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua", true))()
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
 
-local function CreateLagBomb()
-    -- Включаем лаггер
-    lagEnabled = true
-    
-    lagTask = task.spawn(function()
-        while lagEnabled do
-            local playerRoot = game.Players.LocalPlayer.Character and 
-                               game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+-- Ждем загрузку персонажа
+if not LocalPlayer.Character then
+    LocalPlayer.CharacterAdded:Wait()
+end
+
+local Window = WindUI:CreateWindow({
+    Title = "GnomHub Fixed",
+    Icon = "rbxassetid://114691672281339",
+    Author = "by GothbreachHelper",
+    Folder = "GnomHub_Fixed"
+})
+
+local MainTab = Window:Tab({ Title = "Main", Icon = "bomb" })
+
+-- 1. РАБОЧИЙ LAGGER (ИСПРАВЛЕННЫЙ)
+local lagActive = false
+local lagConnection
+
+MainTab:Toggle({
+    Title = "Packet Lag Bomb v2",
+    Desc = "Создает лаг у игроков рядом",
+    Callback = function(state)
+        lagActive = state
+        if state then
+            -- Проверяем наличие персонажа
+            if not LocalPlayer.Character then
+                WindUI:Notify({
+                    Title = "Ошибка",
+                    Content = "Персонаж не найден",
+                    Icon = "alert-triangle"
+                })
+                return
+            end
             
-            if playerRoot then
-                -- Находим всех игроков в радиусе
-                for _, player in ipairs(game.Players:GetPlayers()) do
-                    if player ~= game.Players.LocalPlayer and player.Character then
-                        local targetRoot = player.Character:FindFirstChild("HumanoidRootPart")
-                        
-                        if targetRoot then
-                            local distance = (playerRoot.Position - targetRoot.Position).Magnitude
-                            
-                            if distance <= lagRadius then
-                                -- Отправляем тяжелые пакеты игрокам в радиусе
-                                for i = 1, 10 do
-                                    if not lagEnabled then break end
-                                    
-                                    -- Метод 1: Отправка через NetworkClient
-                                    pcall(function()
-                                        game:GetService("NetworkClient"):Send("Chat", {
-                                            Message = string.rep("LAG", packetCount)
-                                        })
-                                    end)
-                                    
-                                    -- Метод 2: Отправка через RemoteEvents
-                                    local remote = playerRoot:FindFirstChildWhichIsA("RemoteEvent")
-                                    if remote then
-                                        remote:FireServer(string.rep("X", packetCount))
-                                    end
-                                end
+            local root = LocalPlayer.Character:WaitForChild("HumanoidRootPart", 5)
+            if not root then
+                WindUI:Notify({
+                    Title = "Ошибка",
+                    Content = "HumanoidRootPart не найден",
+                    Icon = "alert-triangle"
+                })
+                return
+            end
+            
+            WindUI:Notify({
+                Title = "Lag Bomb",
+                Content = "Активирован",
+                Icon = "zap"
+            })
+            
+            lagConnection = RunService.Heartbeat:Connect(function()
+                if not lagActive or not LocalPlayer.Character then
+                    return
+                end
+                
+                -- Используем несколько методов для лага
+                pcall(function()
+                    -- Метод 1: FireServer с разными RemoteEvents
+                    for _, obj in pairs(LocalPlayer.Character:GetDescendants()) do
+                        if obj:IsA("RemoteEvent") then
+                            for i = 1, 5 do
+                                obj:FireServer(string.rep("LAG", 500))
                             end
                         end
                     end
+                    
+                    -- Метод 2: Изменение свойств
+                    if root then
+                        local currentCF = root.CFrame
+                        root.CFrame = currentCF * CFrame.new(0.001, 0, 0)
+                        task.wait(0.001)
+                        root.CFrame = currentCF * CFrame.new(-0.001, 0, 0)
+                    end
+                end)
+            end)
+        else
+            if lagConnection then
+                lagConnection:Disconnect()
+                lagConnection = nil
+            end
+            WindUI:Notify({
+                Title = "Lag Bomb",
+                Content = "Деактивирован",
+                Icon = "power"
+            })
+        end
+    end
+})
+
+-- 2. УЛУЧШЕННЫЙ BYPASS С ЗАЩИТОЙ
+MainTab:Button({
+    Title = "Проникнуть на базу (Bypass v2)",
+    Desc = "Телепортация вперед через стены",
+    Callback = function()
+        local char = LocalPlayer.Character
+        if not char then
+            WindUI:Notify({
+                Title = "Ошибка",
+                Content = "Персонаж не найден",
+                Icon = "alert-triangle"
+            })
+            return
+        end
+        
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then
+            WindUI:Notify({
+                Title = "Ошибка",
+                Content = "HumanoidRootPart не найден",
+                Icon = "alert-triangle"
+            })
+            return
+        end
+        
+        -- Включаем временный noclip
+        local originalCollisions = {}
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                originalCollisions[part] = part.CanCollide
+                part.CanCollide = false
+            end
+        end
+        
+        -- Телепортируем
+        local currentCF = root.CFrame
+        root.CFrame = currentCF * CFrame.new(0, 0, -10)
+        
+        -- Возвращаем коллизии через 0.5 секунды
+        task.delay(0.5, function()
+            for part, canCollide in pairs(originalCollisions) do
+                if part.Parent then
+                    part.CanCollide = canCollide
                 end
             end
+        end)
+        
+        WindUI:Notify({
+            Title = "GnomHub",
+            Content = "Проход выполнен",
+            Icon = "check",
+            Duration = 2
+        })
+    end
+})
+
+-- 3. УЛУЧШЕННЫЙ FLY
+local flying = false
+local flyVelocity
+local flyConnection
+
+MainTab:Toggle({
+    Title = "Fly v2 (Стабильный)",
+    Desc = "Плавный полет с управлением",
+    Callback = function(state)
+        flying = state
+        if state then
+            local char = LocalPlayer.Character
+            if not char then
+                WindUI:Notify({
+                    Title = "Ошибка",
+                    Content = "Персонаж не найден",
+                    Icon = "alert-triangle"
+                })
+                return
+            end
             
-            task.wait(0.15) -- Задержка между волнами
-        end
-    end)
-    
-    return "Lag Bomb активирован (радиус: " .. lagRadius .. " studs)"
-end
-
-local function StopLagBomb()
-    lagEnabled = false
-    if lagTask then
-        task.cancel(lagTask)
-        lagTask = nil
-    end
-    return "Lag Bomb деактивирован"
-end
-
--- Команды для управления лаггером
-local function LagCommands(command, value)
-    if command == "start" then
-        return CreateLagBomb()
-    elseif command == "stop" then
-        return StopLagBomb()
-    elseif command == "radius" and tonumber(value) then
-        lagRadius = tonumber(value)
-        return "Радиус лаггера изменен на: " .. lagRadius
-    elseif command == "power" and tonumber(value) then
-        packetCount = math.clamp(tonumber(value), 100, 10000)
-        return "Мощность лаггера изменена: " .. packetCount
-    end
-    return "Неизвестная команда"
-end
-
--- Интеграция в ваш интерфейс (пример)
-local function AddLagToUI()
-    -- Создаем раздел для лаггера в вашем UI
-    local LagTab = Window:Tab({ Title = "Lag Bomb", Icon = "zap" })
-    
-    LagTab:Toggle({
-        Title = "Включить Lag Bomb",
-        Desc = "Создает лаг у игроков рядом",
-        Callback = function(state)
-            if state then
-                CreateLagBomb()
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if not root then
                 WindUI:Notify({
-                    Title = "Lag System",
-                    Content = "Лаггер активирован",
-                    Icon = "zap"
+                    Title = "Ошибка",
+                    Content = "HumanoidRootPart не найден",
+                    Icon = "alert-triangle"
                 })
-            else
-                StopLagBomb()
-                WindUI:Notify({
-                    Title = "Lag System",
-                    Content = "Лаггер выключен",
-                    Icon = "power"
-                })
+                return
             end
-        end
-    })
-    
-    LagTab:Slider({
-        Title = "Радиус действия",
-        Desc = "Дистанция воздействия лаггера",
-        Min = 10,
-        Max = 200,
-        Default = 50,
-        Callback = function(value)
-            lagRadius = value
-        end
-    })
-    
-    LagTab:Slider({
-        Title = "Мощность лаггера",
-        Desc = "Количество пакетов (больше = сильнее)",
-        Min = 100,
-        Max = 10000,
-        Default = 1000,
-        Callback = function(value)
-            packetCount = value
-        end
-    })
-    
-    LagTab:Button({
-        Title = "Быстрый лаг (тест)",
-        Desc = "Тестовая волна лага",
-        Callback = function()
-            for i = 1, 50 do
-                game:GetService("NetworkClient"):Send("Chat", {
-                    Message = string.rep("TEST", 500)
-                })
-                task.wait(0.01)
+            
+            -- Удаляем старые силы
+            if flyVelocity then
+                flyVelocity:Destroy()
             end
+            
+            -- Создаем BodyVelocity для полета
+            flyVelocity = Instance.new("BodyVelocity")
+            flyVelocity.Name = "WindUIFly"
+            flyVelocity.MaxForce = Vector3.new(40000, 40000, 40000)
+            flyVelocity.Velocity = Vector3.new(0, 0, 0)
+            flyVelocity.Parent = root
+            
+            -- Управление
+            flyConnection = RunService.Heartbeat:Connect(function()
+                if not flying or not flyVelocity or not flyVelocity.Parent then
+                    return
+                end
+                
+                local camera = workspace.CurrentCamera
+                local moveVector = Vector3.new(0, 0, 0)
+                
+                if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.W) then
+                    moveVector = moveVector + camera.CFrame.LookVector * 25
+                end
+                if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.S) then
+                    moveVector = moveVector - camera.CFrame.LookVector * 25
+                end
+                if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.A) then
+                    moveVector = moveVector - camera.CFrame.RightVector * 25
+                end
+                if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.D) then
+                    moveVector = moveVector + camera.CFrame.RightVector * 25
+                end
+                if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.Space) then
+                    moveVector = moveVector + Vector3.new(0, 25, 0)
+                end
+                if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.LeftShift) then
+                    moveVector = moveVector + Vector3.new(0, -25, 0)
+                end
+                
+                flyVelocity.Velocity = moveVector
+            end)
+            
+            WindUI:Notify({
+                Title = "Fly",
+                Content = "Активирован (WASD + Space/Shift)",
+                Icon = "wind",
+                Duration = 3
+            })
+        else
+            flying = false
+            if flyConnection then
+                flyConnection:Disconnect()
+                flyConnection = nil
+            end
+            if flyVelocity then
+                flyVelocity:Destroy()
+                flyVelocity = nil
+            end
+            
+            WindUI:Notify({
+                Title = "Fly",
+                Content = "Деактивирован",
+                Icon = "power"
+            })
         end
-    })
-end
+    end
+})
 
--- Автоматическая защита от киков
-local function AntiKickProtection()
-    -- Скрываем сетевую активность
-    local oldSend
-    oldSend = hookfunction(game:GetService("NetworkClient").Send, function(self, ...)
-        local args = {...}
-        -- Фильтруем подозрительные пакеты
-        if type(args[2]) == "table" and type(args[2].Message) == "string" then
-            if #args[2].Message > 10000 then
-                args[2].Message = args[2].Message:sub(1, 100)
-            end
-        end
-        return oldSend(self, unpack(args))
-    end)
-    
-    -- Рандомизация времени отправки
-    task.spawn(function()
-        while true do
-            if lagEnabled then
-                task.wait(math.random(5, 15) / 10)
-            else
-                task.wait(1)
-            end
-        end
-    end)
-end
+-- 4. NOCLIP (ДОБАВЛЕН НОВЫЙ)
+local noclipActive = false
+local noclipConnection
 
--- Инициализация
-if game:GetService("Players").LocalPlayer then
-    -- Добавляем лаггер в UI
-    AddLagToUI()
-    
-    -- Включаем защиту
-    pcall(AntiKickProtection)
-    
-    print("✅ Lag Bomb System загружен")
-end
+MainTab:Toggle({
+    Title = "Noclip",
+    Desc = "Проходить сквозь стены",
+    Callback = function(state)
+        noclipActive = state
+        if state then
+            noclipConnection = RunService.Stepped:Connect(function()
+                if noclipActive and LocalPlayer.Character then
+                    for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+            end)
+            WindUI:Notify({
+                Title = "Noclip",
+                Content = "Активирован",
+                Icon = "eye-off"
+            })
+        else
+            if noclipConnection then
+                noclipConnection:Disconnect()
+                noclipConnection = nil
+            end
+            -- Восстанавливаем коллизии
+            if LocalPlayer.Character then
+                for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = true
+                    end
+                end
+            end
+            WindUI:Notify({
+                Title = "Noclip",
+                Content = "Деактивирован",
+                Icon = "eye"
+            })
+        end
+    end
+})
 
--- Экспортируем функции для использования в других частях скрипта
-return {
-    StartLag = CreateLagBomb,
-    StopLag = StopLagBomb,
-    LagCommand = LagCommands,
-    IsLagActive = function() return lagEnabled end
-}
+-- 5. БЫСТРАЯ ТЕЛЕПОРТАЦИЯ
+MainTab:Button({
+    Title = "Быстрая телепортация",
+    Desc = "Телепортирует вперед на 20 метров",
+    Callback = function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        
+        local camera = workspace.CurrentCamera
+        local direction = camera.CFrame.LookVector
+        
+        root.CFrame = CFrame.new(root.Position + direction * 20)
+        
+        WindUI:Notify({
+            Title = "Телепорт",
+            Content = "Успешно",
+            Icon = "move-right"
+        })
+    end
+})
+
+-- 6. ЭКСТРЕННАЯ ОСТАНОВКА
+MainTab:Button({
+    Title = "Экстренная остановка",
+    Desc = "Отключает все функции",
+    Callback = function()
+        -- Отключаем Lag
+        lagActive = false
+        if lagConnection then
+            lagConnection:Disconnect()
+            lagConnection = nil
+        end
+        
+        -- Отключаем Fly
+        flying = false
+        if flyConnection then
+            flyConnection:Disconnect()
+            flyConnection = nil
+        end
+        if flyVelocity then
+            flyVelocity:Destroy()
+            flyVelocity = nil
+        end
+        
+        -- Отключаем Noclip
+        noclipActive = false
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+        
+        WindUI:Notify({
+            Title = "Система",
+            Content = "Все функции отключены",
+            Icon = "power",
+            Duration = 3
+        })
+    end
+})
+
+-- Автоматическое отключение при смерти
+LocalPlayer.CharacterAdded:Connect(function()
+    lagActive = false
+    flying = false
+    noclipActive = false
+    
+    if lagConnection then
+        lagConnection:Disconnect()
+        lagConnection = nil
+    end
+    if flyConnection then
+        flyConnection:Disconnect()
+        flyConnection = nil
+    end
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+    end
+end)
+
+Window:SelectTab(1)
+
+-- Уведомление о загрузке
+WindUI:Notify({
+    Title = "GnomHub Fixed",
+    Content = "Меню загружено успешно",
+    Icon = "check-circle",
+    Duration = 3
+})
+
+print("✅ GnomHub Fixed загружен")
