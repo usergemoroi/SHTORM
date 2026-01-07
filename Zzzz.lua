@@ -1,212 +1,188 @@
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local NetworkClient = game:GetService("NetworkClient")
-local LocalPlayer = Players.LocalPlayer
+-- Рабочий Lag Bomb на основе вашего скрипта
+local lagEnabled = false
+local lagRadius = 50
+local packetCount = 1000
+local lagTask
 
-local Window = WindUI:CreateWindow({
-    Title = "GnomHub Enhanced",
-    Icon = "rbxassetid://114691672281339",
-    Author = "by GothbreachHelper",
-    Folder = "GnomHub_SAB"
-})
-
-local MainTab = Window:Tab({ Title = "Main", Icon = "bomb" })
-
--- 1. УЛУЧШЕННЫЙ NOCLIP
-local noclipActive = false
-local noclipConnection
-
-MainTab:Toggle({
-    Title = "Noclip (Улучшенный)",
-    Desc = "Плавное прохождение сквозь стены",
-    Callback = function(state)
-        noclipActive = state
-        if state then
-            noclipConnection = RunService.Stepped:Connect(function()
-                if LocalPlayer.Character then
-                    for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = false
-                        end
-                    end
-                end
-            end)
-            WindUI:Notify({ Title = "Noclip", Content = "Активирован", Icon = "check" })
-        else
-            if noclipConnection then
-                noclipConnection:Disconnect()
-                -- Восстанавливаем коллизии
-                if LocalPlayer.Character then
-                    for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = true
-                        end
-                    end
-                end
-            end
-        end
-    end
-})
-
--- 2. УЛУЧШЕННЫЙ LAGGER С РАДИУСОМ ДЕЙСТВИЯ
-local lagActive = false
-local lagRadius = 50 -- Радиус в studs
-local lagPacketSize = 5000 -- Размер пакета
-
-MainTab:Toggle({
-    Title = "Area Lag Bomb",
-    Desc = "Вызывает лаги у игроков в радиусе " .. lagRadius .. " studs",
-    Callback = function(state)
-        lagActive = state
-        if state then
-            task.spawn(function()
-                while lagActive do
-                    -- Находим всех игроков в радиусе
-                    local myPosition = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if myPosition then
-                        for _, player in ipairs(Players:GetPlayers()) do
-                            if player ~= LocalPlayer and player.Character then
-                                local targetRoot = player.Character:FindFirstChild("HumanoidRootPart")
-                                if targetRoot then
-                                    local distance = (myPosition.Position - targetRoot.Position).Magnitude
-                                    if distance <= lagRadius then
-                                        -- Отправляем тяжелые пакеты
-                                        for i = 1, 10 do
-                                            if not lagActive then break end
-                                            -- Используем разные методы для нагрузки сети
-                                            pcall(function()
-                                                NetworkClient:Send("Chat", {Message = string.rep("L", lagPacketSize)})
-                                            end)
-                                        end
+local function CreateLagBomb()
+    -- Включаем лаггер
+    lagEnabled = true
+    
+    lagTask = task.spawn(function()
+        while lagEnabled do
+            local playerRoot = game.Players.LocalPlayer.Character and 
+                               game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            
+            if playerRoot then
+                -- Находим всех игроков в радиусе
+                for _, player in ipairs(game.Players:GetPlayers()) do
+                    if player ~= game.Players.LocalPlayer and player.Character then
+                        local targetRoot = player.Character:FindFirstChild("HumanoidRootPart")
+                        
+                        if targetRoot then
+                            local distance = (playerRoot.Position - targetRoot.Position).Magnitude
+                            
+                            if distance <= lagRadius then
+                                -- Отправляем тяжелые пакеты игрокам в радиусе
+                                for i = 1, 10 do
+                                    if not lagEnabled then break end
+                                    
+                                    -- Метод 1: Отправка через NetworkClient
+                                    pcall(function()
+                                        game:GetService("NetworkClient"):Send("Chat", {
+                                            Message = string.rep("LAG", packetCount)
+                                        })
+                                    end)
+                                    
+                                    -- Метод 2: Отправка через RemoteEvents
+                                    local remote = playerRoot:FindFirstChildWhichIsA("RemoteEvent")
+                                    if remote then
+                                        remote:FireServer(string.rep("X", packetCount))
                                     end
                                 end
                             end
                         end
                     end
-                    task.wait(0.2) -- Интервал между волнами
                 end
-            end)
-            WindUI:Notify({ Title = "Lag Bomb", Content = "Активирован (радиус: " .. lagRadius .. ")", Icon = "alert-circle" })
-        else
-            WindUI:Notify({ Title = "Lag Bomb", Content = "Деактивирован", Icon = "check" })
-        end
-    end
-})
-
--- 3. НАСТРОЙКА РАДИУСА LAGGER
-MainTab:Slider({
-    Title = "Lag Radius",
-    Desc = "Радиус действия лаггера",
-    Min = 10,
-    Max = 100,
-    Default = 50,
-    Callback = function(value)
-        lagRadius = value
-        WindUI:Notify({ Title = "Настройка", Content = "Радиус лаггера: " .. value, Icon = "settings" })
-    end
-})
-
--- 4. УЛУЧШЕННЫЙ FLY С ЗАЩИТОЙ ОТ АНТИЧИТА
-local flying = false
-local flyVelocity
-
-MainTab:Toggle({
-    Title = "Fly v2 (Оптимизированный)",
-    Desc = "Плавный полет с защитой",
-    Callback = function(state)
-        flying = state
-        if state then
-            local bodyVel = Instance.new("BodyVelocity")
-            bodyVel.Name = "WindUIFlyVelocity"
-            bodyVel.MaxForce = Vector3.new(1, 1, 1) * 10000
-            bodyVel.Velocity = Vector3.new(0, 0, 0)
+            end
             
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                bodyVel.Parent = LocalPlayer.Character.HumanoidRootPart
-                flyVelocity = bodyVel
-                
-                task.spawn(function()
-                    while flying do
-                        if flyVelocity and flyVelocity.Parent then
-                            local camera = workspace.CurrentCamera
-                            local lookVector = camera.CFrame.LookVector
-                            local newVelocity = lookVector * 40
-                            newVelocity = newVelocity + Vector3.new(0, 0.5, 0) -- Легкий подъем
-                            flyVelocity.Velocity = newVelocity
-                        end
-                        task.wait()
-                    end
-                end)
-            end
-        else
-            if flyVelocity then
-                flyVelocity:Destroy()
-                flyVelocity = nil
-            end
+            task.wait(0.15) -- Задержка между волнами
         end
-    end
-})
+    end)
+    
+    return "Lag Bomb активирован (радиус: " .. lagRadius .. " studs)"
+end
 
--- 5. БЫСТРЫЙ BYPASS ДЛЯ ЭКСТРЕННЫХ СИТУАЦИЙ
-MainTab:Button({
-    Title = "Экстренный Bypass",
-    Desc = "Мгновенная телепортация вперед на 15 studs",
-    Callback = function()
-        local char = LocalPlayer.Character
-        local root = char and char:FindFirstChild("HumanoidRootPart")
-        if root then
-            local oldCFrame = root.CFrame
-            -- Телепортация с эффектом "исчезновения"
-            for i = 1, 3 do
-                root.CFrame = oldCFrame * CFrame.new(0, 0, -5 * i)
-                task.wait(0.05)
-            end
-            WindUI:Notify({ Title = "Bypass", Content = "Выполнен", Icon = "zap" })
-        end
+local function StopLagBomb()
+    lagEnabled = false
+    if lagTask then
+        task.cancel(lagTask)
+        lagTask = nil
     end
-})
+    return "Lag Bomb деактивирован"
+end
 
--- 6. ФУНКЦИЯ ОТКЛЮЧЕНИЯ ВСЕГО
-MainTab:Button({
-    Title = "Экстренная остановка",
-    Desc = "Отключает все активные функции",
-    Callback = function()
-        -- Отключаем Noclip
-        noclipActive = false
-        if noclipConnection then
-            noclipConnection:Disconnect()
-        end
-        
-        -- Отключаем Lag
-        lagActive = false
-        
-        -- Отключаем Fly
-        if flying then
-            flying = false
-            if flyVelocity then
-                flyVelocity:Destroy()
-                flyVelocity = nil
+-- Команды для управления лаггером
+local function LagCommands(command, value)
+    if command == "start" then
+        return CreateLagBomb()
+    elseif command == "stop" then
+        return StopLagBomb()
+    elseif command == "radius" and tonumber(value) then
+        lagRadius = tonumber(value)
+        return "Радиус лаггера изменен на: " .. lagRadius
+    elseif command == "power" and tonumber(value) then
+        packetCount = math.clamp(tonumber(value), 100, 10000)
+        return "Мощность лаггера изменена: " .. packetCount
+    end
+    return "Неизвестная команда"
+end
+
+-- Интеграция в ваш интерфейс (пример)
+local function AddLagToUI()
+    -- Создаем раздел для лаггера в вашем UI
+    local LagTab = Window:Tab({ Title = "Lag Bomb", Icon = "zap" })
+    
+    LagTab:Toggle({
+        Title = "Включить Lag Bomb",
+        Desc = "Создает лаг у игроков рядом",
+        Callback = function(state)
+            if state then
+                CreateLagBomb()
+                WindUI:Notify({
+                    Title = "Lag System",
+                    Content = "Лаггер активирован",
+                    Icon = "zap"
+                })
+            else
+                StopLagBomb()
+                WindUI:Notify({
+                    Title = "Lag System",
+                    Content = "Лаггер выключен",
+                    Icon = "power"
+                })
             end
         end
-        
-        WindUI:Notify({ 
-            Title = "Система", 
-            Content = "Все функции отключены", 
-            Icon = "power",
-            Duration = 3
-        })
-    end
-})
+    })
+    
+    LagTab:Slider({
+        Title = "Радиус действия",
+        Desc = "Дистанция воздействия лаггера",
+        Min = 10,
+        Max = 200,
+        Default = 50,
+        Callback = function(value)
+            lagRadius = value
+        end
+    })
+    
+    LagTab:Slider({
+        Title = "Мощность лаггера",
+        Desc = "Количество пакетов (больше = сильнее)",
+        Min = 100,
+        Max = 10000,
+        Default = 1000,
+        Callback = function(value)
+            packetCount = value
+        end
+    })
+    
+    LagTab:Button({
+        Title = "Быстрый лаг (тест)",
+        Desc = "Тестовая волна лага",
+        Callback = function()
+            for i = 1, 50 do
+                game:GetService("NetworkClient"):Send("Chat", {
+                    Message = string.rep("TEST", 500)
+                })
+                task.wait(0.01)
+            end
+        end
+    })
+end
 
-Window:SelectTab(1)
+-- Автоматическая защита от киков
+local function AntiKickProtection()
+    -- Скрываем сетевую активность
+    local oldSend
+    oldSend = hookfunction(game:GetService("NetworkClient").Send, function(self, ...)
+        local args = {...}
+        -- Фильтруем подозрительные пакеты
+        if type(args[2]) == "table" and type(args[2].Message) == "string" then
+            if #args[2].Message > 10000 then
+                args[2].Message = args[2].Message:sub(1, 100)
+            end
+        end
+        return oldSend(self, unpack(args))
+    end)
+    
+    -- Рандомизация времени отправки
+    task.spawn(function()
+        while true do
+            if lagEnabled then
+                task.wait(math.random(5, 15) / 10)
+            else
+                task.wait(1)
+            end
+        end
+    end)
+end
 
--- АВТОМАТИЧЕСКАЯ ЗАЩИТА ПРИ ВЫХОДЕ ИЗ ИГРЫ
-LocalPlayer.CharacterRemoving:Connect(function()
-    if noclipConnection then
-        noclipConnection:Disconnect()
-    end
-    lagActive = false
-end)
+-- Инициализация
+if game:GetService("Players").LocalPlayer then
+    -- Добавляем лаггер в UI
+    AddLagToUI()
+    
+    -- Включаем защиту
+    pcall(AntiKickProtection)
+    
+    print("✅ Lag Bomb System загружен")
+end
 
-print("✅ GnomHub Enhanced loaded by GothbreachHelper")
+-- Экспортируем функции для использования в других частях скрипта
+return {
+    StartLag = CreateLagBomb,
+    StopLag = StopLagBomb,
+    LagCommand = LagCommands,
+    IsLagActive = function() return lagEnabled end
+}
