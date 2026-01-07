@@ -1,119 +1,128 @@
 --[[
-    GnomHub - Premium Brainrot Edition
-    Based on analyzed logic: Remote Spam, CFrame Bypass, and FireTouchInterest
+    GnomHub | Premium System
+    Features: Ultra Lagger, No-Slow Noclip, CFrame Speed, Akali Notifications
 ]]
 
+-- Загрузка системы уведомлений из твоего файла ted.lua
+local AkaliNotif = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/Dynasty/main/AkaliNotif.lua"))()
+local Notify = AkaliNotif.Notify
+
+-- Загрузка библиотеки интерфейса
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("GnomHub | Private", "Midnight")
+local Window = Library.CreateLib("GnomHub | PRIVATE", "Midnight")
 
--- ГЛАВНАЯ ВКЛАДКА
-local Main = Window:NewTab("GnomPower")
-local LaggerSection = Main:NewSection("Destruction (Лаггеры)")
+Notify({
+    Title = "GnomHub",
+    Description = "Скрипт загружен! Все системы GnomHub активны.",
+    Duration = 5
+})
 
--- 1. УЛЬТРА ПАКЕТНЫЙ ЛАГГЕР (Gnom-Lag)
-LaggerSection:NewButton("PACKET LAG: FREEZE SERVER", "Жуткие лаги у всех", function()
-    -- На основе анализа спама символами
-    for i = 1, 3000 do
-        spawn(function()
+-- Вкладка Разрушения (Лаггер)
+local Destr = Window:NewTab("Destruction")
+local LSection = Destr:NewSection("Server Overload")
+
+LSection:NewButton("PACKET LAG: CRASH", "Нажми несколько раз для жесткого лага", function()
+    Notify({Title = "GnomHub", Description = "Отправка тяжелых пакетов...", Duration = 2})
+    for i = 1, 2500 do
+        task.spawn(function()
+            -- Метод из der.txt: спам символами + звуки
             local chat = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
             if chat then
-                chat.SayMessageRequest:FireServer(string.rep("█", 250), "All")
+                chat.SayMessageRequest:FireServer(string.rep("▓", 250), "All")
             end
-            -- Смена состояния для перегрузки физики
-            game.Players.LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.StrafingNoPhysics)
+            game.Players.LocalPlayer.Character.Humanoid:ChangeState(11)
         end)
     end
 end)
 
-LaggerSection:NewToggle("Lag Aura", "Постоянные пакеты вокруг тебя", function(state)
-    _G.GnomLagAura = state
-    while _G.GnomLagAura do
-        task.wait(0.05)
-        game.Players.LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+LSection:NewToggle("Lag Aura (Loop)", "Постоянно лагать сервер", function(state)
+    _G.GnomLag = state
+    if state then
+        Notify({Title = "GnomHub", Description = "Аура лага включена!", Duration = 3})
+        task.spawn(function()
+            while _G.GnomLag do
+                for i = 1, 100 do
+                    game.Players.LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+                end
+                task.wait(0.01)
+            end
+        end)
     end
 end)
 
--- ВКЛАДКА ВИЗУАЛА (ESP)
-local VisualTab = Window:NewTab("Vision (ВХ)")
-local ESPSection = VisualTab:NewSection("Качественное ВХ")
+-- Вкладка Движения (Bypasses)
+local Move = Window:NewTab("Movement")
+local MSection = Move:NewSection("Gnom Movement")
 
-ESPSection:NewToggle("ESP Игроков", "Красная обводка сквозь стены", function(state)
-    _G.PlayerESP = state
-    game:GetService("RunService").RenderStepped:Connect(function()
-        if _G.PlayerESP then
-            for _, p in pairs(game.Players:GetChildren()) do
-                if p ~= game.Players.LocalPlayer and p.Character and not p.Character:FindFirstChild("GnomHighlight") then
+MSection:NewToggle("Gnom Noclip (FLY)", "Сквозь стены без замедления", function(state)
+    _G.Noclip = state
+    if state then
+        Notify({Title = "GnomHub", Description = "Noclip: ВКЛ (Режим призрака)", Duration = 2})
+    end
+    game:GetService("RunService").Stepped:Connect(function()
+        if _G.Noclip and game.Players.LocalPlayer.Character then
+            for _, v in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
+                if v:IsA("BasePart") then v.CanCollide = false end
+            end
+            -- Фикс замедления: даем персонажу микро-левитацию вместо полной остановки
+            game.Players.LocalPlayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 1.1, 0)
+        end
+    end)
+end)
+
+MSection:NewSlider("CFrame Speed", "Скорость без киков", 1000, 16, function(s)
+    _G.Speed = s
+    task.spawn(function()
+        while _G.Speed > 16 do
+            local char = game.Players.LocalPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                local hum = char.Humanoid
+                if hum.MoveDirection.Magnitude > 0 then
+                    char:TranslateBy(hum.MoveDirection * (s/150))
+                end
+            end
+            task.wait()
+        end
+    end)
+end)
+
+MSection:NewSlider("Gnom Jump", "Высота прыжка", 500, 50, function(s)
+    game.Players.LocalPlayer.Character.Humanoid.JumpPower = s
+    game.Players.LocalPlayer.Character.Humanoid.UseJumpPower = true
+end)
+
+-- Вкладка Визуала
+local Vis = Window:NewTab("Visuals")
+local VSection = Vis:NewSection("Vision & VFX")
+
+VSection:NewToggle("Player ESP", "ВХ на игроков (Box)", function(state)
+    _G.ESP = state
+    if state then
+        Notify({Title = "GnomHub", Description = "ESP Активировано", Duration = 2})
+    end
+    while _G.ESP do
+        for _, p in pairs(game.Players:GetPlayers()) do
+            if p ~= game.Players.LocalPlayer and p.Character then
+                if not p.Character:FindFirstChild("GnomHigh") then
                     local h = Instance.new("Highlight", p.Character)
-                    h.Name = "GnomHighlight"
+                    h.Name = "GnomHigh"
                     h.FillColor = Color3.fromRGB(255, 0, 0)
                     h.OutlineColor = Color3.fromRGB(255, 255, 255)
                 end
             end
-        else
-            for _, p in pairs(game.Players:GetChildren()) do
-                if p.Character and p.Character:FindFirstChild("GnomHighlight") then
-                    p.Character.GnomHighlight:Destroy()
-                end
-            end
         end
-    end)
-end)
-
-ESPSection:NewButton("Подсветить Дорогой Браинрот", "Зеленое ВХ на предметы", function()
-    -- Реальный поиск по TouchInterest
-    for _, obj in pairs(game.Workspace:GetDescendants()) do
-        if obj:IsA("TouchInterest") and obj.Parent:IsA("BasePart") then
-            local h = Instance.new("Highlight", obj.Parent)
-            h.FillColor = Color3.fromRGB(0, 255, 0)
-            h.AlwaysOnTop = true
-        end
+        task.wait(1)
     end
 end)
 
--- ВКЛАДКА ДВИЖЕНИЯ
-local MoveTab = Window:NewTab("Movement")
-local MoveSection = MoveTab:NewSection("Bypasses")
-
--- 2. REAL NOCLIP (Улучшенный метод)
-MoveSection:NewToggle("Gnom Noclip", "Проход сквозь всё без тепа", function(state)
-    _G.GnomNoclip = state
-    game:GetService("RunService").Stepped:Connect(function()
-        if _G.GnomNoclip and game.Players.LocalPlayer.Character then
-            for _, part in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-            -- Стабилизация для обхода анти-чита
-            game.Players.LocalPlayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0.1, 0)
-        end
-    end)
-end)
-
--- 3. CFRAME SPEED (Безопасное ускорение)
-MoveSection:NewSlider("Gnom Speed", "Телепорт-ускорение", 500, 16, function(s)
-    _G.GnomSpeedValue = s
-    game:GetService("RunService").Heartbeat:Connect(function()
-        if _G.GnomSpeedValue > 16 and game.Players.LocalPlayer.Character then
-            local moveDir = game.Players.LocalPlayer.Character.Humanoid.MoveDirection
-            if moveDir.Magnitude > 0 then
-                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame + (moveDir * (_G.GnomSpeedValue / 150))
-            end
-        end
-    end)
-end)
-
--- ВКЛАДКА КРАСОТЫ
-local StyleTab = Window:NewTab("Style")
-local StyleSection = StyleTab:NewSection("Gnom Appearance")
-
-StyleSection:NewButton("ForceField + Aura", "Стать красивым", function()
-    -- Реальное изменение материала
-    local char = game.Players.LocalPlayer.Character
-    for _, v in pairs(char:GetChildren()) do
-        if v:IsA("BasePart") then
-            v.Material = Enum.Material.ForceField
-            v.Color = Color3.fromRGB(150, 0, 255)
+VSection:NewButton("God Appearance (Rainbow)", "Красивые визуальные эффекты", function()
+    local p = game.Players.LocalPlayer.Character
+    for _, part in pairs(p:GetChildren()) do
+        if part:IsA("BasePart") then
+            part.Material = Enum.Material.ForceField
+            part.Color = Color3.fromRGB(0, 255, 255)
+            Instance.new("Sparkles", part).SparkleColor = Color3.fromRGB(0, 255, 255)
         end
     end
+    Notify({Title = "GnomHub", Description = "Визуальные эффекты применены!", Duration = 3})
 end)
