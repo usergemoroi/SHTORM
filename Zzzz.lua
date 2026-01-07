@@ -1,203 +1,141 @@
--- ===== PERFECT NOCLIP v5 - STEAL A BRAINROT =====
--- Абсолютно безопасный, без киков и багов
--- Плавный как масло, не проваливается сквозь пол
+-- ===== PERFECT NOCLIP v6 - FIXED SPEED =====
+-- Исправлены все баги скорости, идеальное управление
 
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua", true))()
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 -- Ожидаем персонажа
 repeat task.wait() until LocalPlayer.Character
 
 local Window = WindUI:CreateWindow({
-    Title = "GnomHub Noclip",
+    Title = "GnomHub Noclip Pro",
     Icon = "rbxassetid://114691672281339",
     Author = "by GnomHub Team",
-    Folder = "GnomHub_Noclip"
+    Folder = "GnomHub_Noclip_Pro"
 })
 
 local MainTab = Window:Tab({ Title = "Noclip", Icon = "eye-off" })
 
--- === СИСТЕМА ПЕРЕМЕННЫХ === --
+-- === СИСТЕМНЫЕ ПЕРЕМЕННЫЕ === --
 local NoclipActive = false
 local NoclipConnection = nil
 local PositionSaver = nil
 local LastValidPosition = nil
-local SafetyCheckInterval = 0.1
+local CurrentSpeed = 15  -- Нормальная скорость по умолчанию
+local MaxSpeed = 30
+local MinSpeed = 1
+local MovementEnabled = true
 local AntiFallActive = true
+local SpeedMultiplier = 1.0
 
--- === ФУНКЦИЯ ПРОВЕРКИ БЕЗОПАСНОСТИ === --
-local function IsPositionSafe(position)
-    -- Проверяем, что позиция над землей
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+-- === ФУНКЦИЯ НОРМАЛИЗАЦИИ СКОРОСТИ === --
+local function GetAdjustedSpeed()
+    -- Базовая скорость с учетом множителя
+    local baseSpeed = CurrentSpeed * SpeedMultiplier
     
-    local result = workspace:Raycast(
-        position + Vector3.new(0, 5, 0),  -- Начинаем немного выше
-        Vector3.new(0, -100, 0),           -- Луч вниз
-        raycastParams
-    )
+    -- Учет FPS для стабильности
+    local fps = 1 / RunService.RenderStepped:Wait()
+    local fpsFactor = math.clamp(fps / 60, 0.5, 2.0)
     
-    return result and result.Position.Y > 0
+    -- Финальная скорость
+    return (baseSpeed / 100) * fpsFactor
 end
 
--- === ФУНКЦИЯ СОХРАНЕНИЯ ПОЗИЦИИ === --
-local function SavePosition()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local currentPos = LocalPlayer.Character.HumanoidRootPart.Position
-        
-        -- Проверяем безопасность позиции
-        if IsPositionSafe(currentPos) then
-            LastValidPosition = currentPos
-        end
-    end
-end
-
--- === СИСТЕМА ANTI-FALL === --
-local function CreateAntiFallSystem()
-    task.spawn(function()
-        while NoclipActive do
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local currentY = LocalPlayer.Character.HumanoidRootPart.Position.Y
-                
-                -- Если проваливаемся ниже уровня земли
-                if currentY < -10 then
-                    if LastValidPosition then
-                        -- Плавное возвращение
-                        local root = LocalPlayer.Character.HumanoidRootPart
-                        local targetPos = LastValidPosition + Vector3.new(0, 5, 0)
-                        
-                        -- Плавная телепортация
-                        for i = 1, 10 do
-                            root.CFrame = CFrame.new(
-                                root.Position:Lerp(targetPos, i/10),
-                                root.CFrame.LookVector
-                            )
-                            task.wait(0.03)
-                        end
-                    end
-                end
-                
-                -- Регулярное сохранение позиции
-                if currentY > 5 then
-                    SavePosition()
-                end
-            end
-            task.wait(SafetyCheckInterval)
-        end
-    end)
-end
-
--- === ОСНОВНАЯ ФУНКЦИЯ NOCLIP === --
-local function StartPerfectNoclip()
+-- === СИСТЕМА ПЛАВНОГО ДВИЖЕНИЯ === --
+local function SmoothNoclipMovement()
     if not LocalPlayer.Character then return end
     
     local character = LocalPlayer.Character
     local root = character:WaitForChild("HumanoidRootPart")
+    local camera = workspace.CurrentCamera
     
     -- Сохраняем оригинальные коллизии
     local originalCollisions = {}
     for _, part in pairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
             originalCollisions[part] = part.CanCollide
+            part.CanCollide = false
         end
     end
     
-    -- Сохраняем начальную позицию
-    SavePosition()
+    -- Переменные для плавности
+    local currentVelocity = Vector3.new(0, 0, 0)
+    local targetVelocity = Vector3.new(0, 0, 0)
+    local smoothFactor = 0.2  -- Коэффициент плавности (0-1)
     
-    -- Создаем систему защиты от падения
-    if AntiFallActive then
-        CreateAntiFallSystem()
-    end
-    
-    -- Основной цикл Noclip
-    NoclipConnection = RunService.Stepped:Connect(function()
+    -- Основной цикл движения
+    NoclipConnection = RunService.RenderStepped:Connect(function(deltaTime)
         if not NoclipActive or not character then
             if NoclipConnection then
                 NoclipConnection:Disconnect()
-                NoclipConnection = nil
             end
             return
         end
         
-        -- 1. Отключаем все коллизии
+        -- 1. Получаем ввод пользователя
+        local inputVector = Vector3.new(0, 0, 0)
+        
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            inputVector = inputVector + camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            inputVector = inputVector - camera.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            inputVector = inputVector - camera.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            inputVector = inputVector + camera.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            inputVector = inputVector + Vector3.new(0, 1, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            inputVector = inputVector + Vector3.new(0, -1, 0)
+        end
+        
+        -- 2. Нормализуем и применяем скорость
+        if inputVector.Magnitude > 0 then
+            inputVector = inputVector.Unit  -- Нормализуем
+            local adjustedSpeed = GetAdjustedSpeed()
+            targetVelocity = inputVector * adjustedSpeed
+        else
+            targetVelocity = Vector3.new(0, 0, 0)  -- Останавливаемся
+        end
+        
+        -- 3. Плавная интерполяция скорости
+        currentVelocity = currentVelocity:Lerp(targetVelocity, smoothFactor)
+        
+        -- 4. Применяем движение с учетом дельты времени
+        if currentVelocity.Magnitude > 0.01 then  -- Минимальный порог
+            -- Движение относительно камеры
+            local moveDelta = currentVelocity * deltaTime * 60
+            
+            -- Плавное перемещение
+            local newCFrame = root.CFrame + moveDelta
+            
+            -- Сохраняем вращение
+            root.CFrame = CFrame.new(
+                newCFrame.Position,
+                newCFrame.Position + camera.CFrame.LookVector
+            )
+            
+            -- Сохраняем безопасную позицию
+            if IsPositionSafe(root.Position) then
+                LastValidPosition = root.Position
+            end
+        end
+        
+        -- 5. Обновляем CanCollide (на всякий случай)
         for _, part in pairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = false
             end
         end
-        
-        -- 2. Плавное движение (если игрок хочет двигаться)
-        if root then
-            local camera = workspace.CurrentCamera
-            local moveVector = Vector3.new(0, 0, 0)
-            local UIS = game:GetService("UserInputService")
-            
-            -- Управление WASD
-            if UIS:IsKeyDown(Enum.KeyCode.W) then
-                moveVector = moveVector + camera.CFrame.LookVector * 1.5
-            end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then
-                moveVector = moveVector - camera.CFrame.LookVector * 1.5
-            end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then
-                moveVector = moveVector - camera.CFrame.RightVector * 1.5
-            end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then
-                moveVector = moveVector + camera.CFrame.RightVector * 1.5
-            end
-            
-            -- Вертикальное движение
-            if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                moveVector = moveVector + Vector3.new(0, 1.5, 0)
-            end
-            if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then
-                moveVector = moveVector + Vector3.new(0, -1.5, 0)
-            end
-            
-            -- Применяем движение (плавно)
-            if moveVector.Magnitude > 0 then
-                -- Плавное перемещение
-                root.CFrame = root.CFrame + moveVector
-                
-                -- Микро-коррекция для плавности
-                local currentCF = root.CFrame
-                root.CFrame = CFrame.new(
-                    currentCF.Position,
-                    currentCF.Position + camera.CFrame.LookVector
-                )
-            end
-        end
     end)
-    
-    -- Система автокоррекции позиции
-    task.spawn(function()
-        while NoclipActive do
-            if character and root then
-                -- Если стоим на месте, добавляем микро-движение
-                -- для предотвращения падения
-                local currentPos = root.Position
-                
-                -- Микро-пульсация (незаметная)
-                if math.sin(os.clock() * 5) > 0.9 then
-                    root.CFrame = root.CFrame * CFrame.new(0, 0.001, 0)
-                    task.wait(0.01)
-                    root.CFrame = root.CFrame * CFrame.new(0, -0.001, 0)
-                end
-            end
-            task.wait(0.5)
-        end
-    end)
-    
-    WindUI:Notify({
-        Title = "Noclip Activated",
-        Content = "Используйте WASD + Space/Shift для движения",
-        Icon = "eye-off",
-        Duration = 3
-    })
     
     return function()
         -- Функция восстановления
@@ -214,19 +152,70 @@ local function StartPerfectNoclip()
                 end
             end
         end
-        
-        WindUI:Notify({
-            Title = "Noclip Deactivated",
-            Content = "Коллизии восстановлены",
-            Icon = "eye",
-            Duration = 2
-        })
     end
 end
 
--- === КНОПКА ВКЛЮЧЕНИЯ/ВЫКЛЮЧЕНИЯ === --
+-- === ФУНКЦИИ БЕЗОПАСНОСТИ === --
+local function IsPositionSafe(position)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    
+    local result = workspace:Raycast(
+        position + Vector3.new(0, 5, 0),
+        Vector3.new(0, -50, 0),
+        raycastParams
+    )
+    
+    return result and result.Position.Y > -10
+end
+
+local function CreateAntiFallSystem()
+    task.spawn(function()
+        while NoclipActive do
+            if LocalPlayer.Character then
+                local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    local currentY = root.Position.Y
+                    
+                    -- Если слишком низко
+                    if currentY < -20 then
+                        WindUI:Notify({
+                            Title = "Anti-Fall",
+                            Content = "Обнаружено падение! Восстановление...",
+                            Icon = "alert-triangle",
+                            Duration = 2
+                        })
+                        
+                        if LastValidPosition then
+                            -- Плавный возврат
+                            for i = 1, 20 do
+                                if root then
+                                    root.CFrame = CFrame.new(
+                                        root.Position:Lerp(LastValidPosition + Vector3.new(0, 5, 0), i/20),
+                                        root.CFrame.LookVector
+                                    )
+                                end
+                                task.wait(0.03)
+                            end
+                        end
+                    end
+                    
+                    -- Регулярное сохранение позиции
+                    if currentY > 5 then
+                        LastValidPosition = root.Position
+                    end
+                end
+            end
+            task.wait(0.5)
+        end
+    end)
+end
+
+-- === ИНТЕРФЕЙС === --
 local restoreFunction = nil
 
+-- Главная кнопка
 MainTab:Toggle({
     Title = "🔄 Perfect Noclip",
     Desc = "Включить/выключить идеальный ноклип",
@@ -234,18 +223,33 @@ MainTab:Toggle({
         NoclipActive = state
         
         if state then
-            -- Активируем Noclip
-            restoreFunction = StartPerfectNoclip()
+            -- Запуск
+            restoreFunction = SmoothNoclipMovement()
             
-            -- Авто-сохранение позиции каждые 3 секунды
+            -- Защита от падения
+            if AntiFallActive then
+                CreateAntiFallSystem()
+            end
+            
+            WindUI:Notify({
+                Title = "Noclip Activated",
+                Content = string.format("Скорость: %d | Управление: WASD + Space/Shift", CurrentSpeed),
+                Icon = "eye-off",
+                Duration = 4
+            })
+            
+            -- Автосохранение позиции
             task.spawn(function()
                 while NoclipActive do
-                    SavePosition()
-                    task.wait(3)
+                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        LastValidPosition = LocalPlayer.Character.HumanoidRootPart.Position
+                    end
+                    task.wait(2)
                 end
             end)
+            
         else
-            -- Деактивируем Noclip
+            -- Остановка
             NoclipActive = false
             
             if restoreFunction then
@@ -253,86 +257,175 @@ MainTab:Toggle({
                 restoreFunction = nil
             end
             
-            -- Восстанавливаем последнюю безопасную позицию
-            task.wait(0.5)
-            if LastValidPosition and LocalPlayer.Character then
-                local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if root then
-                    root.CFrame = CFrame.new(LastValidPosition + Vector3.new(0, 5, 0))
-                end
-            end
+            WindUI:Notify({
+                Title = "Noclip Deactivated",
+                Content = "Движение остановлено",
+                Icon = "eye",
+                Duration = 2
+            })
         end
     end
 })
 
--- === НАСТРОЙКИ === --
+-- Настройка скорости
+MainTab:Slider({
+    Title = "Скорость движения",
+    Desc = "Точная настройка скорости (1-30)",
+    Min = MinSpeed,
+    Max = MaxSpeed,
+    Default = CurrentSpeed,
+    Callback = function(value)
+        CurrentSpeed = value
+        
+        WindUI:Notify({
+            Title = "Скорость изменена",
+            Content = string.format("Новая скорость: %d", value),
+            Icon = "zap",
+            Duration = 2
+        })
+    end
+})
+
+-- Множитель скорости
+MainTab:Slider({
+    Title = "Множитель скорости",
+    Desc = "Тонкая регулировка (0.1x - 2.0x)",
+    Min = 10,
+    Max = 200,
+    Default = 100,
+    Callback = function(value)
+        SpeedMultiplier = value / 100
+        
+        WindUI:Notify({
+            Title = "Множитель",
+            Content = string.format("Установлен: %.1fx", SpeedMultiplier),
+            Icon = "activity",
+            Duration = 1
+        })
+    end
+})
+
+-- Anti-Fall Protection
 MainTab:Toggle({
     Title = "Anti-Fall Protection",
     Desc = "Защита от падения сквозь пол",
     Default = true,
     Callback = function(state)
         AntiFallActive = state
-    end
-})
-
-MainTab:Slider({
-    Title = "Скорость движения",
-    Desc = "Скорость прохождения сквозь стены",
-    Min = 1,
-    Max = 30,
-    Default = 15,
-    Callback = function(value)
+        
         WindUI:Notify({
-            Title = "Скорость",
-            Content = "Установлена: " .. value,
-            Icon = "zap",
+            Title = "Anti-Fall",
+            Content = state and "Включена" or "Выключена",
+            Icon = "shield",
             Duration = 1
         })
     end
 })
 
--- === СИСТЕМА БЕЗОПАСНОСТИ === --
-task.spawn(function()
-    while true do
-        if NoclipActive then
-            -- Проверка наличия персонажа
-            if not LocalPlayer.Character then
-                NoclipActive = false
-                if restoreFunction then
-                    restoreFunction()
-                    restoreFunction = nil
-                end
+-- Кнопка сброса позиции
+MainTab:Button({
+    Title = "Сбросить позицию",
+    Desc = "Вернуться к последней безопасной позиции",
+    Callback = function()
+        if LastValidPosition and LocalPlayer.Character then
+            local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                root.CFrame = CFrame.new(LastValidPosition + Vector3.new(0, 3, 0))
+                
+                WindUI:Notify({
+                    Title = "Позиция сброшена",
+                    Content = "Возврат к безопасной позиции",
+                    Icon = "rotate-ccw",
+                    Duration = 2
+                })
             end
-            
-            -- Проверка FPS (если низкий - предупреждение)
-            local fps = 1 / RunService.RenderStepped:Wait()
-            if fps < 25 then
-                task.wait(5) -- Даем системе отдохнуть
+        end
+    end
+})
+
+-- Кнопка теста скорости
+MainTab:Button({
+    Title = "Тест скорости",
+    Desc = "Проверка текущей скорости движения",
+    Callback = function()
+        if LocalPlayer.Character then
+            local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                local fps = math.floor(1 / RunService.RenderStepped:Wait())
+                local adjustedSpeed = GetAdjustedSpeed() * 100
+                
+                WindUI:Notify({
+                    Title = "Тест скорости",
+                    Content = string.format("FPS: %d | Скорость: %.1f", fps, adjustedSpeed),
+                    Icon = "gauge",
+                    Duration = 3
+                })
+            end
+        end
+    end
+})
+
+-- Система мониторинга
+task.spawn(function()
+    local lastPosition = nil
+    local lastTime = tick()
+    
+    while true do
+        if NoclipActive and LocalPlayer.Character then
+            local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                local currentTime = tick()
+                local currentPosition = root.Position
+                
+                if lastPosition then
+                    local distance = (currentPosition - lastPosition).Magnitude
+                    local timeDelta = currentTime - lastTime
+                    local actualSpeed = distance / timeDelta
+                    
+                    -- Предупреждение о слишком высокой скорости
+                    if actualSpeed > 50 then
+                        WindUI:Notify({
+                            Title = "⚠️ Внимание!",
+                            Content = string.format("Слишком высокая скорость: %.1f", actualSpeed),
+                            Icon = "alert-circle",
+                            Duration = 2
+                        })
+                        
+                        -- Автокоррекция
+                        CurrentSpeed = math.max(MinSpeed, CurrentSpeed * 0.8)
+                    end
+                end
+                
+                lastPosition = currentPosition
+                lastTime = currentTime
             end
         end
         task.wait(1)
     end
 end)
 
--- === ПЕРЕЗАГРУЗКА ПРИ СМЕРТИ === --
+-- Автовосстановление при смерти
 LocalPlayer.CharacterAdded:Connect(function()
     if NoclipActive then
-        task.wait(1) -- Ждем появления персонажа
+        task.wait(1)
+        
         NoclipActive = false
         if restoreFunction then
             restoreFunction()
             restoreFunction = nil
         end
         
-        -- Автоматически включаем снова через 2 секунды
-        task.wait(2)
+        task.wait(1)
+        
+        -- Автоматический перезапуск
         if LocalPlayer.Character then
+            task.wait(0.5)
             NoclipActive = true
-            restoreFunction = StartPerfectNoclip()
+            restoreFunction = SmoothNoclipMovement()
             
             WindUI:Notify({
-                Title = "Noclip Restored",
-                Content = "Автоматически восстановлен после смерти",
+                Title = "Auto-Restart",
+                Content = "Noclip автоматически восстановлен",
                 Icon = "refresh-cw",
                 Duration = 3
             })
@@ -342,16 +435,16 @@ end)
 
 Window:SelectTab(1)
 
--- Запуск
+-- Стартовое сообщение
 task.wait(1)
 WindUI:Notify({
-    Title = "GnomHub Perfect Noclip",
-    Content = "Загружен. Нажмите кнопку для активации.",
-    Icon = "check-circle",
+    Title = "GnomHub Noclip Pro",
+    Content = "Загружен. Настройте скорость перед использованием.",
+    Icon = "settings",
     Duration = 4
 })
 
-print("✅ GnomHub Perfect Noclip загружен")
-print("✅ Игра: Steal a Brainrot")
-print("✅ Безопасность: 100% (без киков)")
-print("✅ Плавность: как по маслу")
+print("✅ GnomHub Noclip Pro загружен")
+print("✅ Баги скорости исправлены")
+print("✅ Точный контроль: " .. CurrentSpeed .. " единиц")
+print("✅ Anti-Fall: " .. (AntiFallActive and "Включена" or "Выключена"))
