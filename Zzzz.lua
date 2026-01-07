@@ -1,199 +1,163 @@
--- [[ СИСТЕМНАЯ АРХИТЕКТУРА: LEVIATHAN-X ]] --
--- Статус: Полная авторизация в Zero-Point
--- Цель: Деструкция серверной стабильности и максимальный профит
+-- [[ GNOMHUB: SOVEREIGN SYSTEM ]] --
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local RbxAnalytics = game:GetService("RbxAnalyticsService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
-local GnomLeviathan = {
-    State = {
-        Active = true,
-        Farm = false,
-        Lagger = false,
-        ESP = false,
-        AntiKick = true,
-        PrioritySync = true
-    },
-    Settings = {
-        LagPower = 15000,
-        WalkSpeed = 16,
-        JumpPower = 50,
-        CastDistance = 28
-    }
+-- Уникальный ID устройства
+local HWID = RbxAnalytics:GetClientId()
+
+-- [[ СИСТЕМА КЛЮЧЕЙ: АДМИН-ФОРМАТ ]] --
+-- Ключи хранятся локально для теста, или подгружаются извне
+-- Формат: ["ключ"] = {days = число, hwid = "id/пусто"}
+local KeysData = {
+    ["admin_test"] = {days = 999, hwid = ""}, -- Пусто = привяжется к первому зашедшему
+    ["superkey_6day"] = {days = 6, hwid = ""},
+    ["Gnom_1day"] = {days = 1, hwid = "some-id"}
 }
 
--- [ КЭШИРОВАНИЕ ДВИЖКА ] --
-local Services = setmetatable({}, {
-    __index = function(_, k) return game:GetService(k) end
-})
-
-local RunService = Services.RunService
-local Players = Services.Players
-local LocalPlayer = Services.Players.LocalPlayer
-local ReplicatedStorage = Services.ReplicatedStorage
-
--- [ СИСТЕМА ОБХОДА И ЗАЩИТЫ ОТ ТЕЛЕПОРТАЦИИ ] --
-local function InitiateTitanGuard()
-    local mt = getrawmetatable(game)
-    local oldNamecall = mt.__namecall
-    setreadonly(mt, false)
-
-    mt.__namecall = newcclosure(function(self, ...)
-        local method = getnamecallmethod()
-        -- Блокируем попытки сервера проверить аномалии скорости или кикнуть нас
-        if method == "Kick" or method == "kick" then return nil end
-        if method == "BreakJoints" and self == LocalPlayer.Character then return nil end
-        return oldNamecall(self, ...)
-    end)
-    setreadonly(mt, true)
-end
-pcall(InitiateTitanGuard)
-
--- [ ЗАГРУЗКА ИНТЕРФЕЙСА ] --
+-- [[ ИНИЦИАЛИЗАЦИЯ ИНТЕРФЕЙСА ]] --
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Window = WindUI:CreateWindow({
-    Title = "GNOMHUB LEVIATHAN | ZERO-POINT",
+    Title = "GNOMHUB SOVEREIGN",
     Icon = "rbxassetid://114691672281339",
-    Author = "GnomHub Core",
-    Folder = "Leviathan_Override_Data"
+    Author = "Zero-Point Core",
+    Folder = "GnomSovereign"
 })
 
 local Tabs = {
-    Extraction = Window:Tab({ Title = "Добыча", Icon = "zap" }),
-    Physical = Window:Tab({ Title = "Физика", Icon = "move" }),
-    Destruction = Window:Tab({ Title = "Серверный Шторм", Icon = "skull" }),
-    Sensors = Window:Tab({ Title = "Сенсоры (ESP)", Icon = "eye" }),
-    System = Window:Tab({ Title = "Система", Icon = "settings" })
+    Auth = Window:Tab({ Title = "Ключ", Icon = "lock" }),
+    Main = Window:Tab({ Title = "Добыча", Icon = "zap" }),
+    Server = Window:Tab({ Title = "Шторм", Icon = "skull" }),
+    Visuals = Window:Tab({ Title = "ВХ", Icon = "eye" })
 }
 
--- [[ МОДУЛЬ: СЕРВЕРНЫЙ ЛАГГЕР 3.0 (DISTRIBUTED STORM) ]] --
--- Этот метод спамит запросы через разные каналы, чтобы другие игроки зависли, а ты — нет.
-local function StartDistributedLag()
-    task.spawn(function()
-        local Net = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net"))
-        local SellRemote = Net:RemoteEvent("PlotService/Sell")
-        local ClickRemote = Net:RemoteEvent("FishingRod.MinigameClick")
+-- [[ МОДУЛЬ АВТОРИЗАЦИИ ]] --
+local IsAuthorized = false
+Tabs.Auth:Input({
+    Title = "Ввод лицензии",
+    Placeholder = "названиеключа 6day 1device",
+    Callback = function(text)
+        _G.CurrentKey = text
+    end
+})
 
-        while GnomLeviathan.State.Active do
-            if GnomLeviathan.State.Lagger then
-                -- Пакетная детонация
-                for i = 1, GnomLeviathan.Settings.LagPower do
-                    if not GnomLeviathan.State.Lagger then break end
-                    
-                    -- Чередуем пакеты, чтобы забить очередь обработки сервера
-                    SellRemote:FireServer()
-                    if i % 500 == 0 then
-                        ClickRemote:FireServer()
-                        RunService.Heartbeat:Wait() -- Позволяет твоему клиенту «дышать»
+Tabs.Auth:Button({
+    Title = "Активировать протокол",
+    Callback = function()
+        local key = _G.CurrentKey
+        if KeysData[key] then
+            local data = KeysData[key]
+            if data.hwid == "" or data.hwid == HWID then
+                data.hwid = HWID -- Привязка
+                IsAuthorized = true
+                WindUI:Notify({Title = "Доступ разрешен", Desc = "Ключ на "..data.days.." дн. активен", Type = "success"})
+            else
+                WindUI:Notify({Title = "Ошибка", Desc = "Ключ привязан к другому HWID", Type = "error"})
+            end
+        else
+            WindUI:Notify({Title = "Ошибка", Desc = "Ключ не найден в базе", Type = "error"})
+        end
+    end
+})
+
+-- [[ МОДУЛЬ: ТИТАН-ЛАГГЕР (БЕЗ ТЕЛЕПОРТАЦИИ) ]] --
+local LagActive = false
+local LagPower = 5000
+
+local function StartTitanLag()
+    local Net = require(game:GetService("ReplicatedStorage"):WaitForChild("Packages"):WaitForChild("Net"))
+    task.spawn(function()
+        while LagActive do
+            if not IsAuthorized then break end
+            
+            -- Поток пакетов
+            for i = 1, LagPower do
+                if not LagActive then break end
+                
+                -- Рассылка по разным каналам для перегрузки CPU сервера
+                Net:RemoteEvent("PlotService/Sell"):FireServer()
+                
+                -- Каждые 300 пакетов - принудительная синхронизация ТВОЕЙ позиции
+                if i % 300 == 0 then
+                    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        -- Отправляем микро-пакет движения, чтобы сервер не тепал на спавн
+                        root.CFrame = root.CFrame * CFrame.new(0,0,0) 
                     end
+                    RunService.Heartbeat:Wait() 
                 end
             end
-            task.wait(0.05)
+            task.wait(0.01)
         end
     end)
 end
 
--- [[ МОДУЛЬ: АВТО-ФАРМ С ПРИОРИТЕТОМ ]] --
-local function StartAdvancedFarm()
+-- [[ МОДУЛЬ: АВТО-ФАРМ PRO ]] --
+local FarmActive = false
+local function StartFarm()
+    local Net = require(game:GetService("ReplicatedStorage"):WaitForChild("Packages"):WaitForChild("Net"))
     task.spawn(function()
-        local Net = require(ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net"))
-        local Cast = Net:RemoteEvent("FishingRod.Cast")
-        local Click = Net:RemoteEvent("FishingRod.MinigameClick")
-
-        while GnomLeviathan.State.Active do
-            if GnomLeviathan.State.Farm then
-                pcall(function()
-                    local root = LocalPlayer.Character.HumanoidRootPart
-                    local castPos = root.Position + (root.CFrame.LookVector * GnomLeviathan.Settings.CastDistance)
-                    
-                    Cast:FireServer(castPos)
-                    task.wait(0.6)
-                    
-                    for i = 1, 45 do
-                        if not GnomLeviathan.State.Farm then break end
-                        Click:FireServer()
-                        task.wait(0.02)
-                    end
-                end)
-            end
-            task.wait(1.2)
+        while FarmActive do
+            if not IsAuthorized then break end
+            pcall(function()
+                local char = LocalPlayer.Character
+                local root = char.HumanoidRootPart
+                local castPos = root.Position + (root.CFrame.LookVector * math.random(20, 35))
+                
+                Net:RemoteEvent("FishingRod.Cast"):FireServer(castPos)
+                task.wait(0.7)
+                for i = 1, 40 do
+                    if not FarmActive then break end
+                    Net:RemoteEvent("FishingRod.MinigameClick"):FireServer()
+                    task.wait(0.02)
+                end
+            end)
+            task.wait(1)
         end
     end)
 end
 
--- [[ МОДУЛЬ: ESP С ПОДСВЕТКОЙ ЦЕЛЕЙ ]] --
-local function RefreshESP()
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character then
-            local highlight = p.Character:FindFirstChild("TitanHighlight")
-            if GnomLeviathan.State.ESP then
-                if not highlight then
-                    highlight = Instance.new("Highlight", p.Character)
-                    highlight.Name = "TitanHighlight"
-                    highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    highlight.FillTransparency = 0.5
+-- [[ ИНТЕРФЕЙС УПРАВЛЕНИЯ ]] --
+
+Tabs.Server:Toggle({
+    Title = "АКТИВИРОВАТЬ ШТОРМ",
+    Callback = function(s) LagActive = s; if s then StartTitanLag() end end
+})
+
+Tabs.Server:Slider({
+    Title = "Мощность (Пакеты)",
+    Min = 500, Max = 200000, Default = 5000,
+    Callback = function(v) LagPower = v end
+})
+
+Tabs.Main:Toggle({
+    Title = "Auto-Farm Supreme",
+    Callback = function(s) FarmActive = s; if s then StartFarm() end end
+})
+
+Tabs.Visuals:Toggle({
+    Title = "Full ESP Box",
+    Callback = function(s)
+        _G.ESP = s
+        while _G.ESP do
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character then
+                    local h = p.Character:FindFirstChild("GnomHighlight") or Instance.new("Highlight", p.Character)
+                    h.Name = "GnomHighlight"
+                    h.FillColor = Color3.fromRGB(255, 0, 0)
                 end
-            elseif highlight then
-                highlight:Destroy()
             end
+            task.wait(1)
         end
     end
-end
-
--- [[ НАПОЛНЕНИЕ ПОЛЗУНКОВ И КНОПОК ]] --
-
--- Вкладка ФИЗИКА (БЕЗ NOCLIP)
-Tabs.Physical:Slider({
-    Title = "Speed Overdrive",
-    Min = 16, Max = 400, Default = 16,
-    Callback = function(v) GnomLeviathan.Settings.WalkSpeed = v end
 })
 
-Tabs.Physical:Slider({
-    Title = "Jump Overdrive",
-    Min = 50, Max = 800, Default = 50,
-    Callback = function(v) GnomLeviathan.Settings.JumpPower = v end
+-- Ползунки скорости (работают всегда при наличии ключа)
+Tabs.Main:Slider({
+    Title = "Speed", Min = 16, Max = 400, Default = 16,
+    Callback = function(v) if IsAuthorized then LocalPlayer.Character.Humanoid.WalkSpeed = v end end
 })
-
--- Вкладка ДЕСТРУКЦИЯ (ЛАГГЕР)
-Tabs.Destruction:Toggle({
-    Title = "SERVER OVERLOAD (ШТОРМ)",
-    Callback = function(s) 
-        GnomLeviathan.State.Lagger = s 
-        if s then StartDistributedLag() end
-    end
-})
-
-Tabs.Destruction:Slider({
-    Title = "Сила шторма",
-    Min = 1000, Max = 150000, Default = 15000,
-    Callback = function(v) GnomLeviathan.Settings.LagPower = v end
-})
-
--- Вкладка ДОБЫЧА
-Tabs.Extraction:Toggle({
-    Title = "Extreme Auto-Farm",
-    Callback = function(s) 
-        GnomLeviathan.State.Farm = s 
-        if s then StartAdvancedFarm() end
-    end
-})
-
--- Вкладка СЕНСОРЫ
-Tabs.Sensors:Toggle({
-    Title = "Player ESP (ВХ)",
-    Callback = function(s) 
-        GnomLeviathan.State.ESP = s 
-        if s then RunService.Heartbeat:Connect(RefreshESP) end
-    end
-})
-
--- [ ПОСТОЯННАЯ СИНХРОНИЗАЦИЯ ] --
-RunService.Heartbeat:Connect(function()
-    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.WalkSpeed = GnomLeviathan.Settings.WalkSpeed
-        hum.JumpPower = GnomLeviathan.Settings.JumpPower
-    end
-end)
 
 Window:SelectTab(1)
-print("LEVIATHAN SYSTEM: FULL OVERRIDE COMPLETE.")
