@@ -1,83 +1,87 @@
--- Загрузка интерфейса
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
 local savedCFrame = nil
+local isTeleporting = false
 
--- Создание окна
 local Window = WindUI:CreateWindow({
-    Title = "Steal Optimizer v2",
+    Title = "Safe Stealer v3",
     Icon = "rbxassetid://114691672281339",
-    Author = "Anti-Kick System",
-    Folder = "StableSteal"
+    Author = "Anti-Kick Edition",
+    Folder = "SafeStealData"
 })
 
 local MainTab = Window:Tab({ Title = "Кража", Icon = "shopping-cart" })
 
--- Функция безопасного перемещения
-local function safeTeleport(targetCFrame)
-    local character = LocalPlayer.Character
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
+-- Функция плавного перемещения (обход античита)
+local function safeTween(targetCF)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    
+    if root and not isTeleporting then
+        isTeleporting = true
         
-        -- Временный обход проверок
-        humanoid:ChangeState(Enum.HumanoidStateType.Physics) 
-        task.wait(0.05)
+        -- Вычисляем расстояние для подбора скорости
+        local distance = (root.Position - targetCF.Position).Magnitude
+        local speed = 350 -- Оптимальная скорость, чтобы не кикнуло (можно менять)
+        local duration = distance / speed
         
-        character:PivotTo(targetCFrame)
+        -- Отключаем столкновения, чтобы не застрять в текстурах по пути
+        local parts = char:GetDescendants()
+        for _, v in pairs(parts) do
+            if v:IsA("BasePart") then v.CanCollide = false end
+        end
+
+        local tween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCF})
         
-        -- Возвращаем состояние
-        task.wait(0.05)
-        humanoid:ChangeState(Enum.HumanoidStateType.Running)
+        tween:Play()
+        tween.Completed:Wait()
+        
+        -- Включаем столкновения обратно
+        for _, v in pairs(parts) do
+            if v:IsA("BasePart") then v.CanCollide = true end
+        end
+        
+        isTeleporting = false
+        WindUI:Notify({Title = "Успех", Content = "Доставлено на базу!", Icon = "check"})
     end
 end
 
--- КНОПКА: SET POS
 MainTab:Button({
-    Title = "1. СОХРАНИТЬ БАЗУ",
-    Desc = "Нажми это, стоя у себя дома",
+    Title = "1. SET POS (База)",
     Callback = function()
-        local char = LocalPlayer.Character
-        if char and char.PrimaryPart then
-            savedCFrame = char.PrimaryPart.CFrame
-            WindUI:Notify({
-                Title = "Готово!",
-                Content = "Твоя база теперь здесь.",
-                Icon = "check"
-            })
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            savedCFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
+            WindUI:Notify({Title = "Система", Content = "Позиция дома сохранена", Icon = "home"})
         end
     end
 })
 
--- КНОПКА: TP BASE
 MainTab:Button({
-    Title = "2. ТЕЛЕПОРТ НА БАЗУ (С ВЕЩЬЮ)",
-    Desc = "Вернуться мгновенно с браинротом",
+    Title = "2. SAFE TP (Домой)",
+    Desc = "Плавный телепорт для обхода античита",
     Callback = function()
-        if not savedCFrame then
-            WindUI:Notify({
-                Title = "Ошибка",
-                Content = "Ты не поставил метку на базе!",
-                Icon = "alert-circle"
-            })
-            return
+        if savedCFrame then
+            safeTween(savedCFrame)
+        else
+            WindUI:Notify({Title = "Ошибка", Content = "Сначала сохрани позицию!", Icon = "alert-circle"})
         end
-        
-        safeTeleport(savedCFrame)
     end
 })
 
--- АНТИ-АФК (чтобы не кикало за бездействие)
-local VirtualUser = game:GetService("VirtualUser")
-LocalPlayer.Idled:Connect(function()
-    VirtualUser:CaptureController()
-    VirtualUser:ClickButton2(Vector2.new())
-end)
-
-WindUI:Notify({
-    Title = "Скрипт запущен",
-    Content = "Защита от кика активна",
-    Icon = "shield"
+-- Функция NoClip (проход сквозь стены)
+MainTab:Toggle({
+    Title = "Ходить сквозь стены",
+    Callback = function(state)
+        _G.NoClip = state
+        game:GetService("RunService").Stepped:Connect(function()
+            if _G.NoClip and LocalPlayer.Character then
+                for _, v in pairs(LocalPlayer.Character:GetDescendants()) do
+                    if v:IsA("BasePart") then v.CanCollide = false end
+                end
+            end
+        end)
+    end
 })
