@@ -1,77 +1,83 @@
--- Инициализация WindUI (как в твоих файлах)
+-- Загрузка интерфейса
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- Переменная для хранения позиции
 local savedCFrame = nil
 
 -- Создание окна
 local Window = WindUI:CreateWindow({
-    Title = "Brainrot Stealer",
-    Icon = "rbxassetid://114691672281339", -- Иконка из GnomHub
-    Author = "Steal Script",
-    Folder = "StealerConfig"
+    Title = "Steal Optimizer v2",
+    Icon = "rbxassetid://114691672281339",
+    Author = "Anti-Kick System",
+    Folder = "StableSteal"
 })
 
-local MainTab = Window:Tab({ Title = "Главная", Icon = "home" })
+local MainTab = Window:Tab({ Title = "Кража", Icon = "shopping-cart" })
 
--- Кнопка: Установить позицию (Set Pos)
+-- Функция безопасного перемещения
+local function safeTeleport(targetCFrame)
+    local character = LocalPlayer.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        
+        -- Временный обход проверок
+        humanoid:ChangeState(Enum.HumanoidStateType.Physics) 
+        task.wait(0.05)
+        
+        character:PivotTo(targetCFrame)
+        
+        -- Возвращаем состояние
+        task.wait(0.05)
+        humanoid:ChangeState(Enum.HumanoidStateType.Running)
+    end
+end
+
+-- КНОПКА: SET POS
 MainTab:Button({
-    Title = "SET POS (На базе)",
-    Desc = "Сохраняет координаты твоей базы",
+    Title = "1. СОХРАНИТЬ БАЗУ",
+    Desc = "Нажми это, стоя у себя дома",
     Callback = function()
         local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            savedCFrame = char.HumanoidRootPart.CFrame
+        if char and char.PrimaryPart then
+            savedCFrame = char.PrimaryPart.CFrame
             WindUI:Notify({
-                Title = "Успех!",
-                Content = "Позиция базы сохранена",
+                Title = "Готово!",
+                Content = "Твоя база теперь здесь.",
                 Icon = "check"
             })
         end
     end
 })
 
--- Кнопка: Телепорт на базу (TP Base)
+-- КНОПКА: TP BASE
 MainTab:Button({
-    Title = "TP BASE (С ворованным)",
-    Desc = "Телепортирует тебя и предмет в руках на базу",
+    Title = "2. ТЕЛЕПОРТ НА БАЗУ (С ВЕЩЬЮ)",
+    Desc = "Вернуться мгновенно с браинротом",
     Callback = function()
-        local char = LocalPlayer.Character
         if not savedCFrame then
             WindUI:Notify({
                 Title = "Ошибка",
-                Content = "Сначала нажми SET POS на базе!",
-                Icon = "alert-triangle"
+                Content = "Ты не поставил метку на базе!",
+                Icon = "alert-circle"
             })
             return
         end
-
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            -- Телепортация персонажа
-            char.HumanoidRootPart.CFrame = savedCFrame
-            
-            WindUI:Notify({
-                Title = "Телепортация",
-                Content = "Ты вернулся на базу с добычей!",
-                Icon = "map-pin"
-            })
-        end
+        
+        safeTeleport(savedCFrame)
     end
 })
 
--- Дополнительная полезная функция: Скорость (из файла tweensteal)
-MainTab:Slider({
-    Title = "Скорость бега",
-    Step = 1,
-    Min = 16,
-    Max = 200,
-    Default = 16,
-    Callback = function(value)
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("Humanoid") then
-            char.Humanoid.WalkSpeed = value
-        end
-    end
+-- АНТИ-АФК (чтобы не кикало за бездействие)
+local VirtualUser = game:GetService("VirtualUser")
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+end)
+
+WindUI:Notify({
+    Title = "Скрипт запущен",
+    Content = "Защита от кика активна",
+    Icon = "shield"
 })
