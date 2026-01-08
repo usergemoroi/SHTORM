@@ -1,87 +1,112 @@
+-- Загрузка WindUI (используем стабильную версию из твоих файлов)
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 local savedCFrame = nil
 local isTeleporting = false
 
+-- Создание окна
 local Window = WindUI:CreateWindow({
-    Title = "Safe Stealer v3",
-    Icon = "rbxassetid://114691672281339",
-    Author = "Anti-Kick Edition",
-    Folder = "SafeStealData"
+    Title = "SAB EXPLOIT",
+    Icon = "rbxassetid://114691672281339", -- Иконка GnomHub
+    Author = "VIP VERSION",
+    Folder = "SAB_Data"
 })
 
 local MainTab = Window:Tab({ Title = "Кража", Icon = "shopping-cart" })
 
--- Функция плавного перемещения (обход античита)
-local function safeTween(targetCF)
+-- Логирование (то, что ты просил - вывод инфы)
+local function logInfo(msg)
+    print("[SAB LOG]: " .. tostring(msg))
+    WindUI:Notify({
+        Title = "Система",
+        Content = msg,
+        Icon = "info"
+    })
+end
+
+-- Функция безопасного полета на базу (Анти-рестарт)
+local function tweenToBase()
+    if not savedCFrame then 
+        logInfo("Сначала сохрани позицию базы!")
+        return 
+    end
+    
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     
     if root and not isTeleporting then
         isTeleporting = true
+        logInfo("Начинаю безопасный возврат...")
+
+        -- Отключаем гравитацию и коллизию (чтобы сервер не кикнул за столкновение)
+        local bv = Instance.new("BodyVelocity")
+        bv.Velocity = Vector3.new(0,0,0)
+        bv.Parent = root
         
-        -- Вычисляем расстояние для подбора скорости
-        local distance = (root.Position - targetCF.Position).Magnitude
-        local speed = 350 -- Оптимальная скорость, чтобы не кикнуло (можно менять)
-        local duration = distance / speed
-        
-        -- Отключаем столкновения, чтобы не застрять в текстурах по пути
-        local parts = char:GetDescendants()
-        for _, v in pairs(parts) do
+        for _, v in pairs(char:GetDescendants()) do
             if v:IsA("BasePart") then v.CanCollide = false end
         end
 
-        local tween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCF})
+        -- Рассчитываем время полета (скорость 300 - это предел безопасности)
+        local dist = (root.Position - savedCFrame.Position).Magnitude
+        local duration = dist / 300 
+
+        local tween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = savedCFrame})
         
         tween:Play()
         tween.Completed:Wait()
-        
-        -- Включаем столкновения обратно
-        for _, v in pairs(parts) do
+
+        -- Возвращаем всё в норму
+        bv:Destroy()
+        for _, v in pairs(char:GetDescendants()) do
             if v:IsA("BasePart") then v.CanCollide = true end
         end
         
         isTeleporting = false
-        WindUI:Notify({Title = "Успех", Content = "Доставлено на базу!", Icon = "check"})
+        logInfo("Доставлено! Браинрот на базе.")
     end
 end
 
+-- КНОПКИ
 MainTab:Button({
-    Title = "1. SET POS (База)",
+    Title = "ПОСТАВИТЬ ПОЗИЦИЮ (Set Pos)",
+    Desc = "Запомнить это место как дом",
     Callback = function()
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             savedCFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
-            WindUI:Notify({Title = "Система", Content = "Позиция дома сохранена", Icon = "home"})
+            logInfo("База установлена на координатах: " .. tostring(math.floor(savedCFrame.X)))
         end
     end
 })
 
 MainTab:Button({
-    Title = "2. SAFE TP (Домой)",
-    Desc = "Плавный телепорт для обхода античита",
+    Title = "ТП БАЗА (Safe TP)",
+    Desc = "Украсть и улететь (Без кика)",
     Callback = function()
-        if savedCFrame then
-            safeTween(savedCFrame)
-        else
-            WindUI:Notify({Title = "Ошибка", Content = "Сначала сохрани позицию!", Icon = "alert-circle"})
-        end
+        tweenToBase()
     end
 })
 
--- Функция NoClip (проход сквозь стены)
+-- Дополнительно: NoClip для захода на базы
 MainTab:Toggle({
-    Title = "Ходить сквозь стены",
+    Title = "Проход сквозь стены (NoClip)",
     Callback = function(state)
         _G.NoClip = state
-        game:GetService("RunService").Stepped:Connect(function()
-            if _G.NoClip and LocalPlayer.Character then
-                for _, v in pairs(LocalPlayer.Character:GetDescendants()) do
-                    if v:IsA("BasePart") then v.CanCollide = false end
+        task.spawn(function()
+            while _G.NoClip do
+                if LocalPlayer.Character then
+                    for _, v in pairs(LocalPlayer.Character:GetDescendants()) do
+                        if v:IsA("BasePart") then v.CanCollide = false end
+                    end
                 end
+                RunService.Stepped:Wait()
             end
         end)
     end
 })
+
+logInfo("Скрипт готов к работе. Delta Injector OK.")
